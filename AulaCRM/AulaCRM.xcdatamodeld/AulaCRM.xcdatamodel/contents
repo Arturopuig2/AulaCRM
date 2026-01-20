@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24299" systemVersion="25A362" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="Compra" representedClassName="Compra" syncable="YES" codeGenerationType="class">
+        <attribute name="fecha" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fra" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <relationship name="contactos" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Contacto" inverseName="compras" inverseEntity="Contacto"/>
+        <relationship name="productos" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Producto" inverseName="compras" inverseEntity="Producto"/>
+    </entity>
+    <entity name="Contacto" representedClassName=".Contacto" syncable="YES" codeGenerationType="class">
+        <attribute name="cif" optional="YES" attributeType="String"/>
+        <attribute name="ciudad" optional="YES" attributeType="String"/>
+        <attribute name="cliente" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="codigo" optional="YES" attributeType="String"/>
+        <attribute name="cp" optional="YES" attributeType="String"/>
+        <attribute name="direccion" optional="YES" attributeType="String"/>
+        <attribute name="email" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="lng" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="nombre" optional="YES" attributeType="String"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <attribute name="provincia" optional="YES" attributeType="String"/>
+        <attribute name="regimen" optional="YES" attributeType="String"/>
+        <attribute name="telefono" optional="YES" attributeType="String"/>
+        <relationship name="compras" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Compra" inverseName="contactos" inverseEntity="Compra"/>
+        <relationship name="conversaciones" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Conversacion" inverseName="contactos" inverseEntity="Conversacion"/>
+        <relationship name="personas" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Persona" inverseName="contactos" inverseEntity="Persona"/>
+        <relationship name="tipo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Tipo" inverseName="contactos" inverseEntity="Tipo"/>
+    </entity>
+    <entity name="Conversacion" representedClassName=".Conversacion" syncable="YES" codeGenerationType="class">
+        <attribute name="fecha" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <relationship name="contactos" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Contacto" inverseName="conversaciones" inverseEntity="Contacto"/>
+    </entity>
+    <entity name="Persona" representedClassName="Persona" syncable="YES" codeGenerationType="class">
+        <attribute name="email" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="nombre" optional="YES" attributeType="String"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <attribute name="telefono" optional="YES" attributeType="String"/>
+        <relationship name="contactos" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Contacto" inverseName="personas" inverseEntity="Contacto"/>
+    </entity>
+    <entity name="Producto" representedClassName="Producto" syncable="YES" codeGenerationType="class">
+        <attribute name="asignatura" optional="YES" attributeType="String"/>
+        <attribute name="curso" optional="YES" attributeType="String"/>
+        <attribute name="depositolegal" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isbn" optional="YES" attributeType="String"/>
+        <attribute name="nombre" optional="YES" attributeType="String"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <attribute name="precio" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="stock" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="compras" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Compra" inverseName="productos" inverseEntity="Compra"/>
+    </entity>
+    <entity name="Tipo" representedClassName="Tipo" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="nombre" optional="YES" attributeType="String"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <relationship name="contactos" optional="YES" maxCount="1" deletionRule="Deny" destinationEntity="Contacto" inverseName="tipo" inverseEntity="Contacto"/>
+    </entity>
+</model>
