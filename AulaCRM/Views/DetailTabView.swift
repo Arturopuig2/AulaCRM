@@ -8,9 +8,13 @@
 import SwiftUI
 import MapKit
 import CoreData
+#if os(iOS)
+import UIKit
+#endif
 
 struct DetailTabView: View {
     @Environment(\.managedObjectContext) private var ctx
+    @Environment(\.openURL) private var openURL
     @ObservedObject var contacto: Contacto
     var contactosFiltrados: [Contacto] = []
     @Binding var showAllPins: Bool
@@ -34,8 +38,9 @@ struct DetailTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Spacer().frame(height: 10)
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+            //Spacer().frame(height: 10)
+            #if os(macOS)
+            Grid(alignment: .leading, horizontalSpacing: 4, verticalSpacing: 10) {
                 // Fila 1: Nombre | [Código, CIF]
                 GridRow {
                     Text("Nombre")
@@ -43,6 +48,7 @@ struct DetailTabView: View {
                         .focused($focusedField, equals: .nombre)
                         .textFieldStyle(.roundedBorder)
                         // Removed fixed minWidth to allow shrinking/expanding
+                        .frame(width: 280) // Shortened field
                         .gridColumnAlignment(.leading)
 
                     HStack(spacing: 12) {
@@ -66,6 +72,7 @@ struct DetailTabView: View {
                     Text("Dirección")
                     TextField("Dirección", text: Binding(get: { contacto.direccion ?? "" }, set: { contacto.direccion = $0 }))
                         .textFieldStyle(.roundedBorder)
+                        .frame(width: 280) // Shortened field
                         .gridColumnAlignment(.leading)
 
                     HStack(spacing: 12) {
@@ -107,10 +114,13 @@ struct DetailTabView: View {
                         }
                         
                         if let email = contacto.email, !email.isEmpty {
-                            Button("Enviar") {
+                            Button {
                                 if let url = URL(string: "mailto:\(email)?subject=Consulta%20AulaCRM") {
-                                    NSWorkspace.shared.open(url)
+                                    openURL(url)
                                 }
+                            } label: {
+                                Image(systemName: "envelope")
+                                    .help("Enviar correo")
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
@@ -215,12 +225,116 @@ struct DetailTabView: View {
                 //.frame(minHeight: 400)
                 .frame(height: 600)
                 .padding(.top, 0)
+            #else
+            Form {
+                Section("Datos Principales") {
+                    TextField("Nombre", text: Binding(get: { contacto.nombre ?? "" }, set: { contacto.nombre = $0 }))
+                        .focused($focusedField, equals: .nombre)
+                    
+                    Toggle("Es Cliente", isOn: Binding(get: { contacto.esCliente }, set: { contacto.esCliente = $0 }))
+                    
+                    HStack {
+                        TextField("Código", text: Binding(get: { contacto.codigoSafe }, set: { contacto.codigoSafe = $0 }))
+                        Divider()
+                        TextField("CIF", text: Binding(get: { contacto.cifSafe }, set: { contacto.cifSafe = $0 }))
+                    }
+                }
+                
+                Section("Ubicación") {
+                    TextField("Dirección", text: Binding(get: { contacto.direccion ?? "" }, set: { contacto.direccion = $0 }))
+                    
+                    HStack {
+                        TextField("Ciudad", text: Binding(get: { contacto.ciudad ?? "" }, set: { contacto.ciudad = $0 }))
+                        Divider()
+                        TextField("Provincia", text: Binding(get: { contacto.provincia ?? "" }, set: { contacto.provincia = $0 }))
+                    }
+                    
+                    TextField("Código Postal", text: Binding(get: { contacto.cp ?? "" }, set: { contacto.cp = $0 }))
+                        .keyboardType(.numberPad)
+                }
+                
+                Section("Contacto") {
+                    HStack {
+                        Image(systemName: "phone")
+                            .foregroundStyle(.secondary)
+                        TextField("Teléfono", text: Binding(get: { contacto.telefono ?? "" }, set: { contacto.telefono = $0 }))
+                            .keyboardType(.phonePad)
+                    }
+                    
+                    HStack {
+                        Image(systemName: "envelope")
+                            .foregroundStyle(.secondary)
+                        TextField("Email", text: Binding(get: { contacto.email ?? "" }, set: { contacto.email = $0 }))
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                        
+                        if let email = contacto.email, !email.isEmpty {
+                            Spacer()
+                            Button {
+                                if let url = URL(string: "mailto:\(email)?subject=Consulta%20AulaCRM") {
+                                    openURL(url)
+                                }
+                            } label: {
+                                Image(systemName: "paperplane.fill")
+                                    .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+                }
+                
+                Section("Notas") {
+                    TextField("Añadir notas...", text: Binding(get: { contacto.notas ?? "" }, set: { contacto.notas = $0 }), axis: .vertical)
+                        .lineLimit(3...8)
+                }
+                
+                Section {
+                    Button {
+                        try? ctx.save()
+                        let impact = UIImpactFeedbackGenerator(style: .medium)
+                        impact.impactOccurred()
+                    } label: {
+                        Text("Guardar Cambios")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear) 
+                }
+            }
+            .formStyle(.grouped)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Text("Eliminar")
+                            .foregroundStyle(.red)
+                    }
+                    .alert("¿Eliminar este contacto?", isPresented: $showDeleteAlert) {
+                        Button("Eliminar", role: .destructive) {
+                            ctx.delete(contacto)
+                            try? ctx.save()
+                            selectedContact = nil
+                        }
+                        Button("Cancelar", role: .cancel) { }
+                    } message: {
+                        Text("Esta acción no se puede deshacer.")
+                    }
+                }
+            }
+            #endif
 
         }
         
         .onAppear {
             latText = String(contacto.latSafe)
             lngText = String(contacto.lngSafe)
+            
+            // 🛑 Forzar que NO se ponga el foco en Nombre automáticamente
+            DispatchQueue.main.async {
+                self.focusedField = nil
+            }
         }
         .onChange(of: contacto.objectID) { _, _ in
             latText = String(contacto.latSafe)

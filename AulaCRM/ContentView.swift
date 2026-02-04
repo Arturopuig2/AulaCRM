@@ -8,7 +8,9 @@
 import SwiftUI
 import CoreData
 import MapKit
+#if os(macOS)
 import AppKit
+#endif
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var ctx
@@ -23,21 +25,22 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .detalle
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     
-    @State private var selectedProvincia = "València"
-    @State private var selectedCiudad    = "VALÈNCIA"
+    @State private var selectedProvincia = "Todos"
+    @State private var selectedCiudad    = "Todos"
     @State private var selectedCP        = "Todos"
     @State private var selectedRegimen   = "Todos"
     @State private var selectedCliente   = "Todos" // opciones: Todos / Sí / No
     @State private var showAllPins = false
     
     
-    @FocusState private var searchFocused: Bool
-
-    @State private var showFilters: Bool = true
+    @State private var showFilters: Bool = false
     
     // Debug DB
     @State private var showDBAlert = false
     @State private var dbPathString = ""
+    
+    // Backup
+    @State private var backupURL: URL?
     
     
     // Picker Detalle / Productos para la toolbar
@@ -92,108 +95,104 @@ struct ContentView: View {
     }
     private var regimenesUnicos:  [String] { ["Todos"] + Array(Set(contactos.compactMap { $0.regimen?.trimmingCharacters(in: .whitespacesAndNewlines)  }.filter { !$0.isEmpty })).sorted() }
     
-    
+    private var filterSection: some View {
+        FilterView(
+            showFilters: $showFilters,
+            selectedProvincia: $selectedProvincia,
+            selectedCiudad: $selectedCiudad,
+            selectedCP: $selectedCP,
+            selectedRegimen: $selectedRegimen,
+            selectedCliente: $selectedCliente,
+            provinciasUnicas: provinciasUnicas,
+            ciudadesUnicas: ciudadesUnicas,
+            cpsUnicos: cpsUnicos,
+            regimenesUnicos: regimenesUnicos
+        )
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // Sidebar
-            List(selection: $selectedID) {
-                // Filtros plegables
-                Section {
-                    DisclosureGroup("Filtros", isExpanded: $showFilters) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            // Provincia
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text("Provincia")
-                                Picker("Provincia", selection: $selectedProvincia) {
-                                    ForEach(provinciasUnicas, id: \.self) { Text($0).tag($0) }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                Spacer(minLength: 0)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 0) {
+                #if os(iOS)
+                // (Filtros movidos abajo)
+                #endif
+                
+                List(selection: $selectedID) {
+                    #if os(macOS)
+                    // En Mac: Filtros dentro de la lista (estilo clásico Sidebar)
+                    filterSection
+                        .listRowSeparator(.hidden)
+                    #endif
 
-                            // Ciudad
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text("Ciudad")
-                                Picker("Ciudad", selection: $selectedCiudad) {
-                                    ForEach(ciudadesUnicas, id: \.self) { Text($0).tag($0) }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                Spacer(minLength: 0)
+                    // Contactos
+                    Section {
+                        ForEach(filteredContacts) { c in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(c.nombre ?? "—").font(.body).fontWeight(.regular)
+                                Text((c.direccion ?? "").isEmpty ? (c.ciudad ?? "") : (c.direccion ?? ""))
+                                    .font(.body).fontWeight(.light)
+                                    .foregroundStyle(.secondary)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            // CP
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text("CP")
-                                Picker("CP", selection: $selectedCP) {
-                                    ForEach(cpsUnicos, id: \.self) { Text($0).tag($0) }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                Spacer(minLength: 0)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            // Régimen
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text("Régimen")
-                                Picker("Régimen", selection: $selectedRegimen) {
-                                    ForEach(regimenesUnicos, id: \.self) { Text($0).tag($0) }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                Spacer(minLength: 0)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            // Cliente (booleano)
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text("Cliente")
-                                Picker("Cliente", selection: $selectedCliente) {
-                                    Text("Todos").tag("Todos")
-                                    Text("Sí").tag("Sí")
-                                    Text("No").tag("No")
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                                Spacer(minLength: 0)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .tag(c.objectID)
                         }
+                        .onDelete(perform: borrar)
                     }
                 }
-
-                // Contactos
-                //Section("Contactos") {
-                Section("") {
-                    Divider() // ← línea gris horizontal
-                    ForEach(filteredContacts) { c in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(c.nombre ?? "—").font(.body).fontWeight(.regular)
-                            Text((c.direccion ?? "").isEmpty ? (c.ciudad ?? "") : (c.direccion ?? ""))
-                                //.font(.caption)
-                                .font(.body).fontWeight(.light)
-                                .foregroundStyle(.secondary)
+                #if os(iOS)
+                .listStyle(.plain) // Estilo plano para quitar cabeceras
+                .padding(.top, 0)
+                #else
+                .listStyle(.sidebar)
+                #endif
+                
+                #if os(iOS)
+                // En iPhone: Barra de búsqueda y Filtros ABAJO (Thumb Zone)
+                Divider()
+                VStack(spacing: 12) {
+                    // 🔍 Buscador Custom
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Buscar contacto…", text: $search)
+                            .textFieldStyle(.plain)
+                        if !search.isEmpty {
+                            Button(action: { search = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        .tag(c.objectID)
                     }
-                    .onDelete(perform: borrar)
+                    .padding(10)
+                    .background(Color(uiColor: .tertiarySystemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    
+                    // 📌 Filtros
+                    filterSection
+                        .padding(10)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: -2)
                 }
+                .padding()
+                .background(Color(uiColor: .systemGroupedBackground))
+                #endif
             }
-            .listStyle(.sidebar)
+            .navigationTitle("Contactos")
+            #if os(macOS)
             .searchable(text: $search, placement: .sidebar, prompt: "Buscar contacto…")
+            #endif
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
             .frame(minWidth: 240)
-
             .navigationSplitViewColumnWidth(min: 200, ideal: 270, max: 345)
-            .navigationTitle("Contact Maps")
+
         } detail: {
                 VStack(alignment: .leading, spacing: 12) {
-                    Spacer().frame(height: 16)
                     switch selectedTab {
                     case .detalle:
+                        #if os(macOS)
                         ScrollView {
                             if let contacto = selectedContact {
                                 DetailTabView(contacto: contacto,
@@ -208,18 +207,49 @@ struct ContentView: View {
                                 Spacer()
                             }
                         }
+                        #else
+                        if let contacto = selectedContact {
+                            DetailTabView(contacto: contacto,
+                                          contactosFiltrados: Array(filteredContacts),
+                                          showAllPins: $showAllPins,
+                                          selectedContact: Binding(
+                                            get: { selectedContact },
+                                            set: { selectedID = $0?.objectID }
+                                          ))
+                        } else {
+                            Text("Selecciona un contacto").foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        #endif
                     case .productos:
                         ProductosTabView()
                     }
                 }
+            #if os(macOS)
             .padding(.horizontal)
+            #endif
             .toolbar {
                 // 🔵 Selector DETALLE / PRODUCTOS en la barra superior
                 ToolbarItem(placement: .automatic) {
                     tabToolbarPicker
                 }
 
-
+                // 💾 Botón BACKUP
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        if let url = BackupManager.generarBackupJSON(context: ctx) {
+                            #if os(iOS)
+                            backupURL = url
+                            #else
+                            // En Mac, abrimos Finder con el archivo seleccionado
+                            NSWorkspace.shared.activateFileViewerSelecting([url])
+                            #endif
+                        }
+                    } label: {
+                        Label("Backup", systemImage: "arrow.down.doc")
+                    }
+                    .help("Exportar Copia de Seguridad (JSON)")
+                }
 
                 // 🟢 Botón AÑADIR contacto (derecha)
                 ToolbarItem(placement: .primaryAction) {
@@ -237,29 +267,40 @@ struct ContentView: View {
                         }
                     } label: {
                         Image(systemName: "cylinder.split.1x2")
-                            .help("Ver ruta Base de Datos")
+                        .help("Ver ruta Base de Datos")
                     }
                 }
             }
-            
             .background(Color.clear)
             .alert("Ruta de la Base de Datos", isPresented: $showDBAlert) {
+                #if os(macOS)
                 Button("Mostrar en Finder") {
                     let url = URL(fileURLWithPath: dbPathString)
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }
+                #endif
                 Button("Copiar Ruta") {
+                    #if os(macOS)
                     let pasteboard = NSPasteboard.general
                     pasteboard.clearContents()
                     pasteboard.setString(dbPathString, forType: .string)
+                    #else
+                    UIPasteboard.general.string = dbPathString
+                    #endif
                 }
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(dbPathString)
             }
         }
+        #if os(iOS)
+        .sheet(item: $backupURL) { url in
+            ShareSheet(activityItems: [url])
+        }
+        #endif
+        #if os(macOS)
         .frame(minWidth: 1000, minHeight: 650)
-        .navigationSplitViewStyle(.balanced)
+        #endif
         .onChange(of: selectedProvincia) { _, _ in
             if !ciudadesUnicas.contains(selectedCiudad) {
                 selectedCiudad = "Todos"
@@ -502,7 +543,8 @@ private struct ProductosTabView: View {
         let c = Contacto(context: ctx)
         c.id = UUID()
         c.nombre = "Colegio Demo"
-        c.ciudad = "Valencia"
+        c.provincia = "València" // Match default
+        c.ciudad = "VALÈNCIA"    // Match default
         c.direccion = "C/ Ejemplo, 123"
         c.email = "info@demo.es"
         c.telefono = "600 000 000"

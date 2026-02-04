@@ -1,18 +1,18 @@
 //ESTRUCTURA PARA SELECCIONAR Y COPIAR
 
 import SwiftUI
-import AppKit   // importante para NSTextField
+#if os(macOS)
+import AppKit
 
 struct SelectableText: NSViewRepresentable {
     let text: String
 
     func makeNSView(context: Context) -> NSTextField {
-        // label con comportamiento de solo lectura
         let label = NSTextField(labelWithString: text)
         label.isEditable = false
         label.isBezeled = false
         label.drawsBackground = false
-        label.isSelectable = true   // <-- CLAVE: se puede seleccionar y copiar
+        label.isSelectable = true
         lineBreak(label)
         return label
     }
@@ -27,3 +27,13 @@ struct SelectableText: NSViewRepresentable {
         label.lineBreakMode = .byTruncatingTail
     }
 }
+#else
+struct SelectableText: View {
+    let text: String
+    
+    var body: some View {
+        Text(text)
+            .textSelection(.enabled)
+    }
+}
+#endif

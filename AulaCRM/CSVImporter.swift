@@ -227,37 +227,51 @@ struct CSVImporter {
         }
     }
 
+    // MARK: - Limpieza de Duplicados
+    
+    /// Elimina duplicados basándose en CIF (si existe) o Nombre
+    static func eliminarDuplicadosReales(ctx: NSManagedObjectContext) {
+        let req: NSFetchRequest<Contacto> = Contacto.fetchRequest()
+        req.sortDescriptors = [NSSortDescriptor(key: "nombre", ascending: true)]
+
+        do {
+            let todos = try ctx.fetch(req)
+            var vistos: Set<String> = []
+            var eliminados = 0
+
+            for c in todos {
+                // Prioridad: CIF. Si no, Nombre.
+                let rawKey = (c.cif ?? "").isEmpty ? (c.nombre ?? "") : (c.cif ?? "")
+                let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                
+                guard !key.isEmpty else { continue }
+
+                if vistos.contains(key) {
+                    // Es un duplicado -> Borrar
+                    ctx.delete(c)
+                    eliminados += 1
+                } else {
+                    vistos.insert(key)
+                }
+            }
+            
+            if ctx.hasChanges {
+                try ctx.save()
+            }
+            if eliminados > 0 {
+                print("🧹 LIMPIEZA: Se han eliminado \(eliminados) contactos duplicados.")
+            } else {
+                print("✨ Base de datos limpia de duplicados.")
+            }
+
+        } catch {
+            print("❌ Error al eliminar duplicados:", error.localizedDescription)
+        }
+    }
+
 }
 
 
 
 //ELIMINAR DUPLICADOS
 
-func eliminarDuplicadosPorCIF(ctx: NSManagedObjectContext) {
-    let req: NSFetchRequest<Contacto> = Contacto.fetchRequest()
-    req.sortDescriptors = [NSSortDescriptor(key: "nombre", ascending: true)]
-
-    do {
-        let todos = try ctx.fetch(req)
-        var vistos: Set<String> = []
-        var eliminados = 0
-
-        for c in todos {
-            guard let key = c.nombre?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-                  !key.isEmpty else { continue }
-
-            if vistos.contains(key) {
-                ctx.delete(c)
-                eliminados += 1
-            } else {
-                vistos.insert(key)
-            }
-        }
-
-        try ctx.save()
-        print("🧹 Eliminados \(eliminados) duplicados por nombre")
-
-    } catch {
-        print("❌ Error al eliminar duplicados:", error.localizedDescription)
-    }
-}
