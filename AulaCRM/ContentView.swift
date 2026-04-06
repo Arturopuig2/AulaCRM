@@ -25,8 +25,8 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .detalle
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     
-    @State private var selectedProvincia = "Todos"
-    @State private var selectedCiudad    = "Todos"
+    @State private var selectedProvincia = "València"
+    @State private var selectedCiudad    = "VALÈNCIA"
     @State private var selectedCP        = "Todos"
     @State private var selectedRegimen   = "Todos"
     @State private var selectedCliente   = "Todos" // opciones: Todos / Sí / No
@@ -42,8 +42,10 @@ struct ContentView: View {
     // Backup
     @State private var backupURL: URL?
     
+    // Añadir Producto
+    @State private var isShowingNewProductSheet = false
     
-    // Picker Detalle / Productos para la toolbar
+    // Picker Detalle / Productos para la toolbar (Solo Mac / iPad)
     private var tabToolbarPicker: some View {
         Picker("", selection: $selectedTab) {
             ForEach(Tab.allCases, id: \.self) { t in
@@ -110,188 +112,292 @@ struct ContentView: View {
         )
     }
 
+    @State private var showImportAlert = false
+    @State private var importResultLog = ""
+    @State private var isImporting = false
+    @State private var importMessage = ""
+
+    private var deleteAction: ((IndexSet) -> Void)? {
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            return nil
+        }
+        #endif
+        return borrar
+    }
+
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            // Sidebar
-            VStack(spacing: 0) {
-                #if os(iOS)
-                // (Filtros movidos abajo)
-                #endif
-                
-                List(selection: $selectedID) {
-                    #if os(macOS)
-                    // En Mac: Filtros dentro de la lista (estilo clásico Sidebar)
-                    filterSection
-                        .listRowSeparator(.hidden)
+        ZStack {
+            // ... (rest of NavigationSplitView) ...
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                // Sidebar
+                VStack(spacing: 0) {
+                    #if os(iOS)
+                    // (Filtros movidos abajo)
                     #endif
-
-                    // Contactos
-                    Section {
-                        ForEach(filteredContacts) { c in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(c.nombre ?? "—").font(.body).fontWeight(.regular)
-                                Text((c.direccion ?? "").isEmpty ? (c.ciudad ?? "") : (c.direccion ?? ""))
-                                    .font(.body).fontWeight(.light)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .tag(c.objectID)
-                        }
-                        .onDelete(perform: borrar)
-                    }
-                }
-                #if os(iOS)
-                .listStyle(.plain) // Estilo plano para quitar cabeceras
-                .padding(.top, 0)
-                #else
-                .listStyle(.sidebar)
-                #endif
-                
-                #if os(iOS)
-                // En iPhone: Barra de búsqueda y Filtros ABAJO (Thumb Zone)
-                Divider()
-                VStack(spacing: 12) {
-                    // 🔍 Buscador Custom
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                        TextField("Buscar contacto…", text: $search)
-                            .textFieldStyle(.plain)
-                        if !search.isEmpty {
-                            Button(action: { search = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .padding(10)
-                    .background(Color(uiColor: .tertiarySystemFill))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
                     
-                    // 📌 Filtros
-                    filterSection
-                        .padding(10)
-                        .background(Color(uiColor: .secondarySystemGroupedBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: -2)
-                }
-                .padding()
-                .background(Color(uiColor: .systemGroupedBackground))
-                #endif
-            }
-            .navigationTitle("Contactos")
-            #if os(macOS)
-            .searchable(text: $search, placement: .sidebar, prompt: "Buscar contacto…")
-            #endif
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .frame(minWidth: 240)
-            .navigationSplitViewColumnWidth(min: 200, ideal: 270, max: 345)
-
-        } detail: {
-                VStack(alignment: .leading, spacing: 12) {
-                    switch selectedTab {
-                    case .detalle:
+                    List(selection: $selectedID) {
                         #if os(macOS)
-                        ScrollView {
+                        // En Mac: Filtros dentro de la lista (estilo clásico Sidebar)
+                        filterSection
+                            .listRowSeparator(.hidden)
+                        #endif
+
+                        // Contactos
+                        Section {
+                            ForEach(filteredContacts) { c in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(c.nombre ?? "—").font(.body).fontWeight(.regular)
+                                    Text((c.direccion ?? "").isEmpty ? (c.ciudad ?? "") : (c.direccion ?? ""))
+                                        .font(.body).fontWeight(.light)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .tag(c.objectID)
+                            }
+                            .onDelete(perform: deleteAction)
+                        }
+                    }
+                    #if os(iOS)
+                    .listStyle(.plain) // Estilo plano para quitar cabeceras
+                    .padding(.top, 0)
+                    #else
+                    .listStyle(.sidebar)
+                    #endif
+                    
+                    #if os(iOS)
+                    // En iPhone: Barra de búsqueda y Filtros ABAJO (Thumb Zone)
+                    Divider()
+                    VStack(spacing: 12) {
+                        // 🔍 Buscador Custom
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                            TextField("Buscar contacto…", text: $search)
+                                .textFieldStyle(.plain)
+                            if !search.isEmpty {
+                                Button(action: { search = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .padding(10)
+                        .background(Color(uiColor: .tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        
+                        // 📌 Filtros
+                        filterSection
+                            .padding(10)
+                            .background(Color(uiColor: .secondarySystemGroupedBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: -2)
+                    }
+                    .padding()
+                    .background(Color(uiColor: .systemGroupedBackground))
+                    #endif
+                }
+                .navigationTitle("Contactos")
+                #if os(macOS)
+                .searchable(text: $search, placement: .sidebar, prompt: "Buscar contacto…")
+                #endif
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar {
+                    #if os(macOS)
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: crearContactoVacio) {
+                            Label("Nuevo Contacto", systemImage: "plus")
+                        }
+                        .help("Añadir nuevo contacto")
+                    }
+                    #else
+                    ToolbarItem(placement: .topBarTrailing) {
+                        HStack(spacing: 16) {
+                            if UIDevice.current.userInterfaceIdiom == .phone {
+                                NavigationLink(destination: ProductosTabViewiPhoneWrapper(isShowingNewProductSheet: $isShowingNewProductSheet)) {
+                                    Image(systemName: "shippingbox")
+                                }
+                            }
+                            Button(action: crearContactoVacio) {
+                                Image(systemName: "plus")
+                            }
+                        }
+                    }
+                    #endif
+                }
+                .frame(minWidth: 240)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 270, max: 345)
+
+            } detail: {
+                    VStack(alignment: .leading, spacing: 12) {
+                        switch selectedTab {
+                        case .detalle:
+                            #if os(macOS)
+                            ScrollView {
+                                if let contacto = selectedContact {
+                                    DetailTabView(contacto: contacto,
+                                                  contactosFiltrados: Array(filteredContacts),
+                                                  showAllPins: $showAllPins,
+                                                  selectedContact: Binding(
+                                                    get: { selectedContact },
+                                                    set: { selectedID = $0?.objectID }))
+                                } else {
+                                    Text("Selecciona un contacto").foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                            }
+                            #else
                             if let contacto = selectedContact {
                                 DetailTabView(contacto: contacto,
                                               contactosFiltrados: Array(filteredContacts),
                                               showAllPins: $showAllPins,
                                               selectedContact: Binding(
                                                 get: { selectedContact },
-                                                set: { selectedID = $0?.objectID }
-                                              ))
+                                                set: { selectedID = $0?.objectID }))
                             } else {
                                 Text("Selecciona un contacto").foregroundStyle(.secondary)
                                 Spacer()
                             }
+                            #endif
+                        case .productos:
+                            ProductosTabView()
+                        }
+                    }
+                #if os(macOS)
+                .padding(.horizontal)
+                #endif
+                .toolbar {
+                    // 🔵 Selector DETALLE / PRODUCTOS en la barra superior (Solo iPad/Mac)
+                    ToolbarItem(placement: .automatic) {
+                        #if os(iOS)
+                        if UIDevice.current.userInterfaceIdiom != .phone {
+                            tabToolbarPicker
                         }
                         #else
-                        if let contacto = selectedContact {
-                            DetailTabView(contacto: contacto,
-                                          contactosFiltrados: Array(filteredContacts),
-                                          showAllPins: $showAllPins,
-                                          selectedContact: Binding(
-                                            get: { selectedContact },
-                                            set: { selectedID = $0?.objectID }
-                                          ))
-                        } else {
-                            Text("Selecciona un contacto").foregroundStyle(.secondary)
-                            Spacer()
+                        tabToolbarPicker
+                        #endif
+                    }
+
+                    // 💾 Botón BACKUP y BBDD (Ocultos en iPhone)
+                    ToolbarItem(placement: .automatic) {
+                        #if os(iOS)
+                        if UIDevice.current.userInterfaceIdiom != .phone {
+                            Button {
+                                if let url = BackupManager.generarBackupJSON(context: ctx) {
+                                    backupURL = url
+                                }
+                            } label: {
+                                Label("Backup", systemImage: "arrow.down.doc")
+                            }
+                            .help("Exportar Copia de Seguridad (JSON)")
+                        }
+                        #else
+                        Button {
+                            if let url = BackupManager.generarBackupJSON(context: ctx) {
+                                NSWorkspace.shared.activateFileViewerSelecting([url])
+                            }
+                        } label: {
+                            Label("Backup", systemImage: "arrow.down.doc")
+                        }
+                        .help("Exportar Copia de Seguridad (JSON)")
+                        #endif
+                    }
+
+                    // 🛠 Botón DEBUG: Ver ruta BBDD (Oculto en iPhone)
+                    ToolbarItem(placement: .automatic) {
+                        #if os(iOS)
+                        if UIDevice.current.userInterfaceIdiom != .phone {
+                            Button {
+                                if let url = PersistenceController.shared.container.persistentStoreDescriptions.first?.url {
+                                    dbPathString = url.path(percentEncoded: false)
+                                    showDBAlert = true
+                                }
+                            } label: {
+                                Image(systemName: "cylinder.split.1x2")
+                                .help("Ver ruta Base de Datos")
+                            }
+                        }
+                        #else
+                        Button {
+                            if let url = PersistenceController.shared.container.persistentStoreDescriptions.first?.url {
+                                dbPathString = url.path(percentEncoded: false)
+                                showDBAlert = true
+                            }
+                        } label: {
+                            Image(systemName: "cylinder.split.1x2")
+                            .help("Ver ruta Base de Datos")
                         }
                         #endif
-                    case .productos:
-                        ProductosTabView()
                     }
                 }
-            #if os(macOS)
-            .padding(.horizontal)
-            #endif
-            .toolbar {
-                // 🔵 Selector DETALLE / PRODUCTOS en la barra superior
-                ToolbarItem(placement: .automatic) {
-                    tabToolbarPicker
-                }
-
-                // 💾 Botón BACKUP
-                ToolbarItem(placement: .automatic) {
-                    Button {
-                        if let url = BackupManager.generarBackupJSON(context: ctx) {
-                            #if os(iOS)
-                            backupURL = url
-                            #else
-                            // En Mac, abrimos Finder con el archivo seleccionado
-                            NSWorkspace.shared.activateFileViewerSelecting([url])
-                            #endif
-                        }
-                    } label: {
-                        Label("Backup", systemImage: "arrow.down.doc")
-                    }
-                    .help("Exportar Copia de Seguridad (JSON)")
-                }
-
-                // 🟢 Botón AÑADIR contacto (derecha)
-                ToolbarItem(placement: .primaryAction) {
-                    Button { crearContactoVacio() } label: {
-                        Label("Añadir", systemImage: "plus")
-                    }
-                }
-                
-                // 🛠 Botón DEBUG: Ver ruta BBDD
-                ToolbarItem(placement: .automatic) {
-                    Button {
-                        if let url = PersistenceController.shared.container.persistentStoreDescriptions.first?.url {
-                            dbPathString = url.path(percentEncoded: false)
-                            showDBAlert = true
-                        }
-                    } label: {
-                        Image(systemName: "cylinder.split.1x2")
-                        .help("Ver ruta Base de Datos")
-                    }
-                }
-            }
-            .background(Color.clear)
-            .alert("Ruta de la Base de Datos", isPresented: $showDBAlert) {
-                #if os(macOS)
-                Button("Mostrar en Finder") {
-                    let url = URL(fileURLWithPath: dbPathString)
-                    NSWorkspace.shared.activateFileViewerSelecting([url])
-                }
-                #endif
-                Button("Copiar Ruta") {
+                .background(Color.clear)
+                .alert("Ruta de la Base de Datos", isPresented: $showDBAlert) {
                     #if os(macOS)
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-                    pasteboard.setString(dbPathString, forType: .string)
-                    #else
-                    UIPasteboard.general.string = dbPathString
+                    Button("Mostrar en Finder") {
+                        let url = URL(fileURLWithPath: dbPathString)
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
                     #endif
+                    Button("Copiar Ruta") {
+                        #if os(macOS)
+                        let pasteboard = NSPasteboard.general
+                        pasteboard.clearContents()
+                        pasteboard.setString(dbPathString, forType: .string)
+                        #else
+                        UIPasteboard.general.string = dbPathString
+                        #endif
+                    }
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(dbPathString)
                 }
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(dbPathString)
             }
+            
+            // Loading Overlay
+            if isImporting {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.white)
+                    Text(importMessage)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                }
+                .padding(40)
+                .background(Material.ultraThinMaterial)
+                .cornerRadius(20)
+            }
+        }
+        // ESCUCHAR CAMBIOS REMOTOS DE CLOUDKIT PARA ACTUALIZAR LA PANTALLA
+        .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
+            Task { @MainActor in
+                print("☁️ [CloudKit] Cambio remoto detectado, refrescando UI...")
+                // Forzar que el contexto principal asimile los nuevos datos
+                ctx.refreshAllObjects()
+            }
+        }
+        .onAppear {
+            // Se ha desactivado la importación automática desde CSV por petición del usuario
+            // para evitar sobrescribir datos de iCloud.
+            // Solo mantenemos una limpieza preventiva de duplicados en el arranque.
+            DispatchQueue.global(qos: .background).async {
+                let bgContext = PersistenceController.shared.container.newBackgroundContext()
+                bgContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+                CSVImporter.eliminarDuplicadosReales(ctx: bgContext)
+            }
+        }
+        .sheet(isPresented: $isShowingNewProductSheet) {
+            SheetNuevoProducto()
+                .environment(\.managedObjectContext, ctx)
+        }
+        .alert("Resultado Importación", isPresented: $showImportAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(importResultLog)
         }
         #if os(iOS)
         .sheet(item: $backupURL) { url in
@@ -368,6 +474,8 @@ struct ContentView: View {
 
     
     private var selectedContact: Contacto? {
+        if isImporting { return nil } // Seguridad: No mostrar nada mientras se importa/borra
+        
         if let id = selectedID {
             return contactos.first(where: { $0.objectID == id })
                 ?? filteredContacts.first
@@ -468,6 +576,11 @@ private struct ProductosTabView: View {
     @State private var sortOrder: [KeyPathComparator<Producto>] = [
         .init(\Producto.nombre, comparator: .localizedStandard)
     ]
+    
+    @State private var productoAEditar: Producto?
+    @State private var mostrarEdicion = false
+    @State private var productoABorrar: Producto?
+    @State private var mostrarConfirmacionBorrado = false
 
     // Formateador numérico para stock
     private let stockFormatter: NumberFormatter = {
@@ -507,31 +620,156 @@ private struct ProductosTabView: View {
         return String(intVal)
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Table(productos) {
-                TableColumn("Nombre") { item in Text(item.nombre ?? "—") }
-                
-                //TableColumn("ISBN") { item in Text(item.isbn ?? "—") }
-                
-                TableColumn("ISBN") { item in
-                    SelectableText(text: item.isbn ?? "")
-                }
-                
-                
-                TableColumn("Depósito Legal") { item in Text(item.depositolegal ?? "—") }
-                TableColumn("Stock") { item in
-                    HStack(spacing: 6) {
-                        TextField("", value: bindingStockInt(item), formatter: stockFormatter)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 70)
-                        Stepper("", value: bindingStockInt(item), in: 0...999_999)
-                            .labelsHidden()
-                    }
+    private var tablaDesktop: some View {
+        Table(productos) {
+            TableColumn("Nombre") { item in Text(item.nombre ?? "—") }
+            
+            //TableColumn("ISBN") { item in Text(item.isbn ?? "—") }
+            
+            TableColumn("ISBN") { item in
+                SelectableText(text: item.isbn ?? "")
+            }
+            
+            
+            TableColumn("Depósito Legal") { item in Text(item.depositolegal ?? "—") }
+            TableColumn("Stock") { item in
+                HStack(spacing: 6) {
+                    TextField("", value: bindingStockInt(item), formatter: stockFormatter)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 70)
+                    Stepper("", value: bindingStockInt(item), in: 0...999_999)
+                        .labelsHidden()
                 }
             }
+            TableColumn("Acciones") { item in
+                HStack(spacing: 12) {
+                    Button {
+                        productoAEditar = item
+                        mostrarEdicion = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        productoABorrar = item
+                        mostrarConfirmacionBorrado = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .width(80)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            #if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                List(productos) { item in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(item.nombre ?? "—")
+                            .font(.headline)
+                        
+                        Text("ISBN: \(item.isbn ?? "—")")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        HStack {
+                            Text("Stock: \(stockTexto(item))")
+                                .font(.subheadline)
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listStyle(.plain)
+            } else {
+                tablaDesktop
+            }
+            #else
+            tablaDesktop
+            #endif
         }
         .padding(.top, 8)
+        .sheet(isPresented: $mostrarEdicion) {
+            SheetNuevoProducto(productoAEditar: productoAEditar)
+                .environment(\.managedObjectContext, ctx)
+        }
+        .alert("Borrar Producto", isPresented: $mostrarConfirmacionBorrado) {
+            Button("Cancelar", role: .cancel) { }
+            Button("Borrar", role: .destructive) {
+                if let p = productoABorrar {
+                    ctx.delete(p)
+                    try? ctx.save()
+                    productoABorrar = nil
+                }
+            }
+        } message: {
+            if let p = productoABorrar {
+                Text("¿Estás seguro de que quieres borrar el producto '\(p.nombre ?? "Desconocido")'? Esta acción no se puede deshacer.")
+            }
+        }
+    }
+}
+
+// MARK: - Wrapper de Productos para iPhone
+private struct ProductosTabViewiPhoneWrapper: View {
+    @Binding var isShowingNewProductSheet: Bool
+    
+    var body: some View {
+        ProductosTabView()
+            .navigationTitle("Productos")
+    }
+}
+
+// MARK: - Vista Modal para Añadir / Editar Producto
+struct SheetNuevoProducto: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.managedObjectContext) private var ctx
+
+    var productoAEditar: Producto?
+
+    @State private var nombre = ""
+    @State private var isbn = ""
+    @State private var stock: Int = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(productoAEditar == nil ? "Nuevo producto" : "Editar producto").font(.title2).bold()
+            Form {
+                TextField("Nombre*", text: $nombre)
+                TextField("ISBN", text: $isbn)
+                Stepper("Stock: \(stock)", value: $stock, in: 0...999999)
+            }
+            HStack {
+                Spacer()
+                Button("Cancelar") { dismiss() }
+                Button("Guardar") {
+                    let prod = productoAEditar ?? Producto(context: ctx)
+                    prod.nombre = nombre
+                    prod.isbn = isbn
+                    prod.stock = Int16(stock)
+                    try? ctx.save()
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(nombre.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 400)
+        .onAppear {
+            if let p = productoAEditar {
+                nombre = p.nombre ?? ""
+                isbn = p.isbn ?? ""
+                stock = (p.value(forKey: "stock") as? NSNumber)?.intValue ?? Int(p.stock)
+            }
+        }
     }
 }
 

@@ -98,6 +98,17 @@
 				TargetAttributes = {
 					691D93832EB6480800D0EC41 = {
 						CreatedOnToolsVersion = 26.0.1;
+						SystemCapabilities = {
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+							com.apple.Push = {
+								enabled = 1;
+							};
+							com.apple.iCloud = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -289,6 +300,15 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/AulaCRM/.venv/lib/python3.11/site-packages/google/_upb",
+					"$(PROJECT_DIR)/AulaCRM/.venv/lib/python3.11/site-packages/pydantic_core",
+					"$(PROJECT_DIR)/AulaCRM/.venv/lib/python3.11/site-packages/cryptography/hazmat/bindings",
+					"$(PROJECT_DIR)/AulaRAG/.venv/lib/python3.11/site-packages/cryptography/hazmat/bindings",
+					"$(PROJECT_DIR)/AulaRAG/.venv/lib/python3.11/site-packages/google/_upb",
+					"$(PROJECT_DIR)/AulaRAG/.venv/lib/python3.11/site-packages/pydantic_core",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = itbook.AulaCRM.pro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -328,6 +348,15 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/AulaCRM/.venv/lib/python3.11/site-packages/google/_upb",
+					"$(PROJECT_DIR)/AulaCRM/.venv/lib/python3.11/site-packages/pydantic_core",
+					"$(PROJECT_DIR)/AulaCRM/.venv/lib/python3.11/site-packages/cryptography/hazmat/bindings",
+					"$(PROJECT_DIR)/AulaRAG/.venv/lib/python3.11/site-packages/cryptography/hazmat/bindings",
+					"$(PROJECT_DIR)/AulaRAG/.venv/lib/python3.11/site-packages/google/_upb",
+					"$(PROJECT_DIR)/AulaRAG/.venv/lib/python3.11/site-packages/pydantic_core",
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = itbook.AulaCRM.pro;

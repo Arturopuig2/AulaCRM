@@ -140,7 +140,7 @@ struct DetailTabView: View {
                             .onChange(of: latText) { _, newValue in
                                 if let d = Double(newValue.replacingOccurrences(of: ",", with: ".")) {
                                     contacto.latSafe = d
-                                    try? ctx.save()
+                                    if !contacto.isDeleted { try? ctx.save() }
                                 }
                             }
                         Text("Lng")
@@ -150,7 +150,7 @@ struct DetailTabView: View {
                             .onChange(of: lngText) { _, newValue in
                                 if let d = Double(newValue.replacingOccurrences(of: ",", with: ".")) {
                                     contacto.lngSafe = d
-                                    try? ctx.save()
+                                    if !contacto.isDeleted { try? ctx.save() }
                                 }
                             }
                     }
@@ -249,8 +249,34 @@ struct DetailTabView: View {
                         TextField("Provincia", text: Binding(get: { contacto.provincia ?? "" }, set: { contacto.provincia = $0 }))
                     }
                     
-                    TextField("Código Postal", text: Binding(get: { contacto.cp ?? "" }, set: { contacto.cp = $0 }))
-                        .keyboardType(.numberPad)
+                    HStack {
+                        TextField("Código Postal", text: Binding(get: { contacto.cp ?? "" }, set: { contacto.cp = $0 }))
+                            .keyboardType(.numberPad)
+                        
+                        Spacer()
+                        
+                        Button {
+                            // Construir query de dirección
+                            let addressParts = [contacto.direccion, contacto.cp, contacto.ciudad, contacto.provincia]
+                            let query = addressParts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+                            
+                            guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
+                            
+                            // Intentar app nativa primero, luego web genérica
+                            let mapsURL = URL(string: "comgooglemaps://?q=\(encodedQuery)")!
+                            let webURL = URL(string: "https://www.google.com/maps/search/?api=1&query=\(encodedQuery)")!
+                            
+                            if UIApplication.shared.canOpenURL(mapsURL) {
+                                UIApplication.shared.open(mapsURL)
+                            } else {
+                                UIApplication.shared.open(webURL)
+                            }
+                        } label: {
+                            Image(systemName: "map.fill")
+                                .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
                 
                 Section("Contacto") {
@@ -303,26 +329,6 @@ struct DetailTabView: View {
                 }
             }
             .formStyle(.grouped)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(role: .destructive) {
-                        showDeleteAlert = true
-                    } label: {
-                        Text("Eliminar")
-                            .foregroundStyle(.red)
-                    }
-                    .alert("¿Eliminar este contacto?", isPresented: $showDeleteAlert) {
-                        Button("Eliminar", role: .destructive) {
-                            ctx.delete(contacto)
-                            try? ctx.save()
-                            selectedContact = nil
-                        }
-                        Button("Cancelar", role: .cancel) { }
-                    } message: {
-                        Text("Esta acción no se puede deshacer.")
-                    }
-                }
-            }
             #endif
 
         }
@@ -340,5 +346,8 @@ struct DetailTabView: View {
             latText = String(contacto.latSafe)
             lngText = String(contacto.lngSafe)
         }
+        #if os(iOS)
+        .navigationBarBackButtonHidden(UIDevice.current.userInterfaceIdiom == .phone)
+        #endif
     }
 }

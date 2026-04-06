@@ -17,21 +17,7 @@ struct AulaCRMApp: App {
 
     //IMPORTAR DATOS DE UN CSV
     init() {
-        
         let ctx = persistenceController.container.viewContext
-                
-        // SOLUCIÓN DEDUPICACIÓN:
-        // Solo importamos si la base de datos está VACÍA.
-        // Esto evita que al instalar en un iPhone nuevo (que recibe datos por iCloud)
-        // se lance la importación doble.
-        let requestCon: NSFetchRequest<Contacto> = Contacto.fetchRequest()
-        let count = (try? ctx.count(for: requestCon)) ?? 0
-        
-        if count == 0 {
-            CSVImporter.importarContactos(desde: "contacto", contexto: ctx)
-            // Marcamos flag por si acaso, aunque el count es más seguro
-            UserDefaults.standard.set(true, forKey: "didImportCSV")
-        }
         
         // Importar Productos si no hay
         let requestProd: NSFetchRequest<Producto> = NSFetchRequest<Producto>(entityName: "Producto")
@@ -41,10 +27,8 @@ struct AulaCRMApp: App {
              CSVImporter.importarProductos(desde: "producto", contexto: ctx)
         }
         
-        // Limpieza extra al arrancar
+        // Limpieza extra al arrancar para asegurar integridad
         CSVImporter.eliminarDuplicadosReales(ctx: ctx)
-        
-        
     }
     
     var body: some Scene {
@@ -57,3 +41,16 @@ struct AulaCRMApp: App {
         #endif
     }
 }
+
+// MARK: - Helper para habilitar el swipe para atrás (iOS)
+#if os(iOS)
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        return viewControllers.count > 1
+    }
+}
+#endif
