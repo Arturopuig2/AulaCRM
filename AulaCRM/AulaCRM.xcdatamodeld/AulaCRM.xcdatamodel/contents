@@ -28,6 +28,7 @@
         <relationship name="conversaciones" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Conversacion" inverseName="contactos" inverseEntity="Conversacion"/>
         <relationship name="personas" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Persona" inverseName="contactos" inverseEntity="Persona"/>
         <relationship name="tipo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Tipo" inverseName="contactos" inverseEntity="Tipo"/>
+        <relationship name="reservas" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Reserva" inverseName="contacto" inverseEntity="Reserva"/>
     </entity>
     <entity name="Conversacion" representedClassName=".Conversacion" syncable="YES" codeGenerationType="class">
         <attribute name="fecha" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -51,14 +52,73 @@
         <attribute name="isbn" optional="YES" attributeType="String"/>
         <attribute name="nombre" optional="YES" attributeType="String"/>
         <attribute name="notas" optional="YES" attributeType="String"/>
-        <attribute name="precio" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="precio" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="stock" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="movimientos" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MovimientoAlmacen" inverseName="producto" inverseEntity="MovimientoAlmacen"/>
         <relationship name="compras" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Compra" inverseName="productos" inverseEntity="Compra"/>
+    </entity>
+    <entity name="MovimientoAlmacen" representedClassName="MovimientoAlmacen" syncable="YES" codeGenerationType="class">
+        <attribute name="cantidad" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="comprador" optional="YES" attributeType="String"/>
+        <attribute name="fecha" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <attribute name="tipoAlmacen" optional="YES" attributeType="String"/>
+        <attribute name="tipoMovimiento" optional="YES" attributeType="String"/>
+        <attribute name="vendedor" optional="YES" attributeType="String"/>
+        <relationship name="producto" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Producto" inverseName="movimientos" inverseEntity="Producto"/>
     </entity>
     <entity name="Tipo" representedClassName="Tipo" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="nombre" optional="YES" attributeType="String"/>
         <attribute name="notas" optional="YES" attributeType="String"/>
         <relationship name="contactos" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Contacto" inverseName="tipo" inverseEntity="Contacto"/>
+    </entity>
+    <entity name="Factura" representedClassName="Factura" syncable="YES" codeGenerationType="class">
+        <attribute name="baseImponible" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="clienteCIF" optional="YES" attributeType="String"/>
+        <attribute name="clienteCiudad" optional="YES" attributeType="String"/>
+        <attribute name="clienteCP" optional="YES" attributeType="String"/>
+        <attribute name="clienteDireccion" optional="YES" attributeType="String"/>
+        <attribute name="clienteNombre" optional="YES" attributeType="String"/>
+        <attribute name="clienteProvincia" optional="YES" attributeType="String"/>
+        <attribute name="clienteOtro" optional="YES" attributeType="String"/>
+        <attribute name="fecha" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="iva" optional="YES" attributeType="Double" defaultValueString="0.04" usesScalarValueType="YES"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <attribute name="numero" optional="YES" attributeType="String"/>
+        <attribute name="total" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="emisor" optional="YES" attributeType="String" defaultValueString="Aula"/>
+        <relationship name="lineas" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LineaFactura" inverseName="factura" inverseEntity="LineaFactura"/>
+    </entity>
+    <entity name="LineaFactura" representedClassName="LineaFactura" syncable="YES" codeGenerationType="class">
+        <attribute name="cantidad" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isbn" optional="YES" attributeType="String"/>
+        <attribute name="precioUnitario" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="productoNombre" optional="YES" attributeType="String"/>
+        <attribute name="total" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="factura" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Factura" inverseName="lineas" inverseEntity="Factura"/>
+    </entity>
+    <entity name="Reserva" representedClassName="Reserva" syncable="YES" codeGenerationType="class">
+        <attribute name="fechaInicio" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fechaFin" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notas" optional="YES" attributeType="String"/>
+        <attribute name="eventoID" optional="YES" attributeType="String"/>
+        <relationship name="contacto" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Contacto" inverseName="reservas" inverseEntity="Contacto"/>
+    </entity>
+    <entity name="NotaLibre" representedClassName="NotaLibre" syncable="YES" codeGenerationType="class">
+        <attribute name="contenido" optional="YES" attributeType="String"/>
+        <attribute name="fecha" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="titulo" optional="YES" attributeType="String"/>
+    </entity>
+    <entity name="TareaTODO" representedClassName="TareaTODO" syncable="YES" codeGenerationType="class">
+        <attribute name="completada" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="fecha" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="titulo" optional="YES" attributeType="String"/>
     </entity>
 </model>

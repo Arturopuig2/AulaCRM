@@ -15,20 +15,12 @@ import UIKit
 struct AulaCRMApp: App {
     let persistenceController = PersistenceController.shared
 
-    //IMPORTAR DATOS DE UN CSV
+    //IMPORTAR DATOS Y LIMPIAR AL ARRANCAR
     init() {
-        let ctx = persistenceController.container.viewContext
-        
-        // Importar Productos si no hay
-        let requestProd: NSFetchRequest<Producto> = NSFetchRequest<Producto>(entityName: "Producto")
-        let countProd = (try? ctx.count(for: requestProd)) ?? 0
-
-        if countProd == 0 {
-             CSVImporter.importarProductos(desde: "producto", contexto: ctx)
-        }
-        
-        // Limpieza extra al arrancar para asegurar integridad
-        CSVImporter.eliminarDuplicadosReales(ctx: ctx)
+        // No hacemos nada aquí con Core Data:
+        // el store de CloudKit carga de forma asíncrona y acceder al
+        // viewContext antes de que termine causa EXC_BAD_ACCESS.
+        // La importación/limpieza se dispara desde .onAppear en ContentView.
     }
     
     var body: some Scene {

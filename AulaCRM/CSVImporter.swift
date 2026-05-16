@@ -234,18 +234,18 @@ struct CSVImporter {
         return v == "true" || v == "1" || v == "si" || v == "sí" || v == "y" || v == "yes"
     }
 
+    /// Normaliza ISBN (minúsculas + solo alfanuméricos) para comparaciones consistentes
+    static func normalizarISBN(_ s: String) -> String {
+        let lowered = s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let scalars = lowered.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+        return String(String.UnicodeScalarView(scalars))
+    }
+
     /// Importa productos desde `nombreArchivo.csv` (separado por ';') con UPSERT por ISBN normalizado
     static func importarProductos(desde nombreArchivo: String, contexto ctx: NSManagedObjectContext) {
         guard let url = Bundle.main.url(forResource: nombreArchivo, withExtension: "csv") else {
             print("⚠️ No se encontró \(nombreArchivo).csv en el bundle")
             return
-        }
-
-        // Normaliza ISBN (minúsculas + solo alfanuméricos)
-        func normalizeISBN(_ s: String) -> String {
-            let lowered = s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let scalars = lowered.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
-            return String(String.UnicodeScalarView(scalars))
         }
 
         do {
@@ -271,22 +271,22 @@ struct CSVImporter {
 
                 // Clave de upsert: ISBN normalizado
                 let isbnRaw = row["isbn"] ?? ""
-                let isbnKey = normalizeISBN(isbnRaw)
+                let isbnKey = normalizarISBN(isbnRaw)
                 if isbnKey.isEmpty { continue }
                 if vistosEnEstaCarga.contains(isbnKey) { continue } // evita duplicados en el mismo CSV
                 vistosEnEstaCarga.insert(isbnKey)
 
                 // Buscar existente
-                let req = NSFetchRequest<NSManagedObject>(entityName: "Producto")
+                let req = NSFetchRequest<Producto>(entityName: "Producto")
                 req.predicate = NSPredicate(format: "isbn == %@", isbnKey)
                 req.fetchLimit = 1
 
-                let producto: NSManagedObject
+                let producto: Producto
                 if let existente = (try? ctx.fetch(req))?.first {
                     producto = existente
                     // UPSERT: Actualizar existente
                 } else {
-                    producto = NSEntityDescription.insertNewObject(forEntityName: "Producto", into: ctx)
+                    producto = Producto(context: ctx)
                 }
 
                 // Setear campos
@@ -306,9 +306,9 @@ struct CSVImporter {
 
                 // UUID opcional si lo llevas en CSV
                 if let idText = row["id"], let uuid = UUID(uuidString: idText) {
-                    producto.setValue(uuid, forKey: "id")
-                } else if (producto.value(forKey: "id") as? UUID) == nil {
-                    producto.setValue(UUID(), forKey: "id")
+                    producto.id = uuid
+                } else if producto.id == nil {
+                    producto.id = UUID()
                 }
 
                 importados += 1
@@ -319,6 +319,38 @@ struct CSVImporter {
 
         } catch {
             print("❌ Error importando productos: \(error.localizedDescription)")
+        }
+    }
+
+    /// Elimina duplicados de productos basándose en ISBN
+    static func eliminarDuplicadosProductos(ctx: NSManagedObjectContext) {
+        let req: NSFetchRequest<Producto> = Producto.fetchRequest()
+        do {
+            let todos = try ctx.fetch(req)
+            var vistosISBN: [String: Producto] = [:]
+            var eliminados = 0
+
+            for p in todos {
+                let isbn = normalizarISBN(p.isbn ?? "")
+                if isbn.isEmpty { continue }
+
+                if let existente = vistosISBN[isbn] {
+                    // Si ya existe, nos quedamos con el que tenga más información o simplemente borramos el duplicado.
+                    // Para mayor seguridad, borramos el que acabamos de encontrar si ya tenemos uno guardado en el mapa.
+                    ctx.delete(p)
+                    eliminados += 1
+                } else {
+                    vistosISBN[isbn] = p
+                    // Aprovechamos para normalizar el ISBN del objeto guardado
+                    p.isbn = isbn
+                }
+            }
+            if ctx.hasChanges { try ctx.save() }
+            if eliminados > 0 {
+                print("🧹 LIMPIEZA PRODUCTOS: Se han eliminado \(eliminados) productos duplicados por ISBN.")
+            }
+        } catch {
+            print("❌ Error al eliminar duplicados de productos:", error.localizedDescription)
         }
     }
 

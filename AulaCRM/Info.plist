@@ -6,5 +6,9 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>AulaCRM necesita acceder a tu calendario para añadir y gestionar las reservas de visitas a colegios.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>AulaCRM necesita acceso completo a tu calendario para crear, modificar y borrar los eventos de las reservas desde la aplicación.</string>
 </dict>
 </plist>

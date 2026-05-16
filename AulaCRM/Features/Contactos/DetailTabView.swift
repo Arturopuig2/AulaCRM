@@ -220,6 +220,16 @@ struct DetailTabView: View {
                 }
                 
             }
+            
+            VStack(alignment: .leading) {
+                Text("Citas de Calendario")
+                    .font(.headline)
+                    .padding(.top, 4)
+                HistorialCalendarioView(contacto: contacto)
+            }
+            .padding(.horizontal, 4)
+            .padding(.bottom, 8)
+
             // Mapa
             MapTabView(contactos: showAllPins ? contactosFiltrados : [contacto], selectedContact: $selectedContact)
                 //.frame(minHeight: 400)
@@ -314,6 +324,10 @@ struct DetailTabView: View {
                         .lineLimit(3...8)
                 }
                 
+                Section("Citas de Calendario") {
+                    HistorialCalendarioView(contacto: contacto)
+                }
+                
                 Section {
                     Button {
                         try? ctx.save()
@@ -349,5 +363,39 @@ struct DetailTabView: View {
         #if os(iOS)
         .navigationBarBackButtonHidden(UIDevice.current.userInterfaceIdiom == .phone)
         #endif
+    }
+}
+
+struct HistorialCalendarioView: View {
+    @ObservedObject var contacto: Contacto
+    
+    var body: some View {
+        let reservas = (contacto.reservas as? Set<Reserva> ?? [])
+            .sorted { ($0.fechaInicio ?? .distantPast) > ($1.fechaInicio ?? .distantPast) }
+        
+        if reservas.isEmpty {
+            Text("No hay citas registradas")
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 4)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(reservas) { res in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(res.fechaInicio?.formatted(date: .long, time: .shortened) ?? "Sin fecha")
+                            .font(.headline)
+                        if let n = res.notas, !n.isEmpty {
+                            Text(n)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    
+                    if res != reservas.last {
+                        Divider()
+                    }
+                }
+            }
+        }
     }
 }

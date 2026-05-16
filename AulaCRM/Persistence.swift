@@ -51,6 +51,13 @@ struct PersistenceController {
             
             // Habilitar notificaciones de cambios remotos (CloudKit -> UI)
             description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+
+            // Migración ligera automática: permite añadir entidades/atributos
+            // sin perder datos cuando el modelo evoluciona.
+            description.setOption(true as NSNumber,
+                                  forKey: NSMigratePersistentStoresAutomaticallyOption)
+            description.setOption(true as NSNumber,
+                                  forKey: NSInferMappingModelAutomaticallyOption)
         }
 
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in

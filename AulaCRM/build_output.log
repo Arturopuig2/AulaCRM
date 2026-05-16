@@ -1,0 +1,5 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild build -project AulaCRM.xcodeproj -scheme AulaCRM -destination "generic/platform=iOS Simulator"
+
+2026-05-05 20:53:56.795 xcodebuild[42565:24108583] Writing error result bundle to /var/folders/z5/hj20d89j7352v17zfk98qclm0000gp/T/ResultBundle_2026-05-05_20-53-0056.xcresult
+xcodebuild: error: 'AulaCRM.xcodeproj' does not exist.
