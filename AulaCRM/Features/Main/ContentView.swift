@@ -39,8 +39,9 @@ struct ContentView: View {
     // Acciones de pestañas (centralizadas aquí para mantener el toolbar estable)
     @State private var mostrarNuevoProducto    = false
     @State private var mostrarNuevoMovimiento  = false
-
+    @State private var mostrarNuevoToDo        = false
     
+
     // Picker Detalle / Productos para la toolbar (Solo Mac / iPad)
     private var tabToolbarPicker: some View {
         Picker("", selection: $selectedTab) {
@@ -62,6 +63,7 @@ struct ContentView: View {
         case almacen = "Almacén"
         case facturas = "Facturas"
         case reservas = "Calendario"
+        case tareas = "Tareas"
         case notas = "Notas"
         
         var displayName: String {
@@ -244,6 +246,8 @@ struct ContentView: View {
                             FacturasTabView()
                         case .reservas:
                             ReservasTabView()
+                        case .tareas:
+                            TareasTabView(mostrarNuevoToDo: $mostrarNuevoToDo)
                         case .notas:
                             NotasTabView()
                         }
@@ -251,12 +255,11 @@ struct ContentView: View {
                 #if os(macOS)
                 .padding(.horizontal)
                 #endif
-                .navigationTitle(selectedTab.displayName)
+                .navigationTitle("")
                 .toolbar {
-                    // 🔵 Selector de pestañas movido a trailing para tener más espacio y evitar recortes
-                    ToolbarItem(placement: .automatic) {
+                    // 🔵 Selector de pestañas alineado a la izquierda
+                    ToolbarItem(placement: .navigation) {
                         tabToolbarPicker
-                            .padding(.trailing, 40) // Ajuste fino de la posición
                     }
 
                     // 💾 Grupo de acciones de la derecha (Backup, BBDD, Plus)
@@ -315,7 +318,7 @@ struct ContentView: View {
 
                         // 3. Botón PLUS (Mantener tamaño incluso si está oculto)
                         Group {
-                            if selectedTab == .reservas || selectedTab == .notas {
+                            if selectedTab == .reservas || selectedTab == .tareas || selectedTab == .notas {
                                 // Mantenemos el botón invisible y desactivado para no alterar el tamaño del contenedor
                                 Button(action: {}) {
                                     Label("Añadir", systemImage: "plus")
