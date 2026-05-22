@@ -84,6 +84,7 @@
         <attribute name="clienteProvincia" optional="YES" attributeType="String"/>
         <attribute name="clienteOtro" optional="YES" attributeType="String"/>
         <attribute name="fecha" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fechaCobro" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="iva" optional="YES" attributeType="Double" defaultValueString="0.04" usesScalarValueType="YES"/>
         <attribute name="notas" optional="YES" attributeType="String"/>
@@ -107,6 +108,7 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="notas" optional="YES" attributeType="String"/>
         <attribute name="eventoID" optional="YES" attributeType="String"/>
+        <attribute name="titulo" optional="YES" attributeType="String"/>
         <relationship name="contacto" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Contacto" inverseName="reservas" inverseEntity="Contacto"/>
     </entity>
     <entity name="NotaLibre" representedClassName="NotaLibre" syncable="YES" codeGenerationType="class">

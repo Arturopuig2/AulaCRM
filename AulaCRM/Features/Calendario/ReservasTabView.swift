@@ -25,6 +25,10 @@ struct ReservasTabView: View {
     @State private var formNotas: String = ""
     @State private var editingReserva: Reserva? = nil
     @State private var formExternalEventID: String? = nil
+    @State private var reservaTipoLibre: Bool = false
+    @State private var formTitulo: String = ""
+    @State private var formHoraInicio: Int = 8
+    @State private var formHoraFin: Int = 9
     
     @State private var externalEvents: [EKEvent] = []
     
@@ -135,9 +139,25 @@ struct ReservasTabView: View {
                             // Área de Contenido
                             VStack(alignment: .leading, spacing: 4) {
                                 if let res = reserva {
-                                    Text(res.contacto?.nombre ?? "Colegio sin asignar")
-                                        .fontWeight(.bold)
-                                        .foregroundStyle(.primary)
+                                    HStack(spacing: 6) {
+                                        Text(res.contacto?.nombre ?? res.titulo ?? "Cita sin asignar")
+                                            .fontWeight(.bold)
+                                            .foregroundStyle(.primary)
+                                        
+                                        if let start = res.fechaInicio, let end = res.fechaFin {
+                                            let startHour = Calendar.current.component(.hour, from: start)
+                                            let endHour = Calendar.current.component(.hour, from: end)
+                                            if endHour - startHour > 1 {
+                                                Text("(\(String(format: "%02d:00", startHour))-\(String(format: "%02d:00", endHour)))")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.blue)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.blue.opacity(0.1))
+                                                    .cornerRadius(4)
+                                            }
+                                        }
+                                    }
                                     if let n = res.notas, !n.isEmpty {
                                         Text(n)
                                             .font(.subheadline)
@@ -146,13 +166,27 @@ struct ReservasTabView: View {
                                     }
                                 } else if let ext = external {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "calendar.badge.plus")
-                                                .font(.caption)
-                                            Text(ext.title ?? "Evento Externo")
+                                        HStack(spacing: 6) {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "calendar.badge.plus")
+                                                    .font(.caption)
+                                                Text(ext.title ?? "Evento Externo")
+                                            }
+                                            .fontWeight(.bold)
+                                            .foregroundStyle(.purple)
+                                            
+                                            let startHour = Calendar.current.component(.hour, from: ext.startDate)
+                                            let endHour = Calendar.current.component(.hour, from: ext.endDate)
+                                            if endHour - startHour > 1 {
+                                                Text("(\(String(format: "%02d:00", startHour))-\(String(format: "%02d:00", endHour)))")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.purple)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.purple.opacity(0.1))
+                                                    .cornerRadius(4)
+                                            }
                                         }
-                                        .fontWeight(.bold)
-                                        .foregroundStyle(.purple)
                                         
                                         Text("Pulsa para vincular como visita")
                                             .font(.caption2)
@@ -250,42 +284,60 @@ struct ReservasTabView: View {
     private func reservaFor(hour: Int, on date: Date) -> Reserva? {
         let calendar = Calendar.current
         return reservas.first { res in
-            guard let resDate = res.fechaInicio else { return false }
-            return calendar.isDate(resDate, inSameDayAs: date) &&
-                   calendar.component(.hour, from: resDate) == hour
+            guard let startDate = res.fechaInicio, let endDate = res.fechaFin else { return false }
+            guard calendar.isDate(startDate, inSameDayAs: date) else { return false }
+            let startHour = calendar.component(.hour, from: startDate)
+            let endHour = calendar.component(.hour, from: endDate)
+            return hour >= startHour && hour < endHour
         }
     }
     
     private func externalEventFor(hour: Int, on date: Date) -> EKEvent? {
         let calendar = Calendar.current
         return externalEvents.first { ev in
-            return calendar.isDate(ev.startDate, inSameDayAs: date) &&
-                   calendar.component(.hour, from: ev.startDate) == hour &&
-                   !reservas.contains(where: { $0.eventoID == ev.eventIdentifier })
+            guard calendar.isDate(ev.startDate, inSameDayAs: date) else { return false }
+            let startHour = calendar.component(.hour, from: ev.startDate)
+            let endHour = calendar.component(.hour, from: ev.endDate)
+            let hourRange = startHour..<max(startHour + 1, endHour)
+            return hourRange.contains(hour) && !reservas.contains(where: { $0.eventoID == ev.eventIdentifier })
         }
     }
     
     private func openForm(for hour: Int) {
         editingReserva = nil
         selectedHour = hour
+        formHoraInicio = hour
+        formHoraFin = hour + 1
         formColegio = nil
         formNotas = ""
         formExternalEventID = nil
+        reservaTipoLibre = false
+        formTitulo = ""
         showingForm = true
     }
     
     private func openForm(for reserva: Reserva) {
         editingReserva = reserva
-        selectedHour = Calendar.current.component(.hour, from: reserva.fechaInicio ?? Date())
+        let start = Calendar.current.component(.hour, from: reserva.fechaInicio ?? Date())
+        let end = Calendar.current.component(.hour, from: reserva.fechaFin ?? Date())
+        selectedHour = start
+        formHoraInicio = start
+        formHoraFin = max(start + 1, end)
         formColegio = reserva.contacto
         formNotas = reserva.notas ?? ""
         formExternalEventID = nil
+        reservaTipoLibre = (reserva.contacto == nil)
+        formTitulo = reserva.titulo ?? ""
         showingForm = true
     }
     
     private func openForm(for ext: EKEvent, hour: Int) {
         editingReserva = nil
         selectedHour = hour
+        let start = Calendar.current.component(.hour, from: ext.startDate)
+        let end = Calendar.current.component(.hour, from: ext.endDate)
+        formHoraInicio = start
+        formHoraFin = max(start + 1, end)
         
         if let title = ext.title {
             formColegio = contactos.first { c in
@@ -298,29 +350,140 @@ struct ReservasTabView: View {
         
         formNotas = ext.notes ?? ""
         formExternalEventID = ext.eventIdentifier
+        reservaTipoLibre = (formColegio == nil)
+        formTitulo = ext.title ?? ""
         showingForm = true
     }
     
     private var formView: some View {
         NavigationStack {
-            Form {
-                Section("Colegio a visitar") {
-                    HStack {
-                        Text(formColegio?.nombre ?? "Selecciona un colegio...")
-                            .foregroundStyle(formColegio == nil ? .secondary : .primary)
-                        Spacer()
-                        Button("Buscar") {
-                            showingColegioSelector = true
+            VStack(alignment: .leading, spacing: 16) {
+                // Tipo de cita
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Tipo de cita")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                    Picker("Tipo de Reserva", selection: $reservaTipoLibre) {
+                        Text("Colegio de la lista").tag(false)
+                        Text("Cita libre / Otro").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+                
+                // Condicional: Colegio o Cita Libre
+                if reservaTipoLibre {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Nombre de la cita")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                        TextField("Escribe el nombre o título de la reserva...", text: $formTitulo)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Colegio a visitar")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Text(formColegio?.nombre ?? "Selecciona un colegio...")
+                                .foregroundStyle(formColegio == nil ? .secondary : .primary)
+                            Spacer()
+                            Button("Buscar") {
+                                showingColegioSelector = true
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .textBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+                        )
                     }
                 }
                 
-                Section("Notas de la reserva") {
-                    TextField("Añadir notas adicionales...", text: $formNotas, axis: .vertical)
-                        .lineLimit(4...8)
+                // Notas de la reserva
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Notas de la reserva")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                    TextEditor(text: $formNotas)
+                        .font(.body)
+                        .padding(4)
+                        .scrollContentBackground(.hidden)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .textBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+                        )
+                        .frame(height: 100)
+                }
+                
+                // Horario de la reserva
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Horario de la reserva")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        Image(systemName: "clock")
+                            .foregroundStyle(.blue)
+                        
+                        Picker("Desde", selection: $formHoraInicio) {
+                            ForEach(8...18, id: \.self) { h in
+                                Text(String(format: "%02d:00", h)).tag(h)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 90)
+                        
+                        Text("a")
+                            .foregroundStyle(.secondary)
+                            .fontWeight(.medium)
+                        
+                        Picker("Hasta", selection: $formHoraFin) {
+                            ForEach((formHoraInicio + 1)...19, id: \.self) { h in
+                                Text(String(format: "%02d:00", h)).tag(h)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 90)
+                        
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.08))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.blue.opacity(0.15), lineWidth: 1)
+                    )
+                }
+                
+                Spacer()
+            }
+            .onChange(of: formHoraInicio) { _, newInicio in
+                if formHoraFin <= newInicio {
+                    formHoraFin = newInicio + 1
                 }
             }
+            .padding()
             .navigationTitle(editingReserva == nil ? "Nueva Reserva - \(String(format: "%02d:00", selectedHour ?? 8))" : "Editar Reserva")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -328,11 +491,10 @@ struct ReservasTabView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Guardar") { guardarReserva() }
-                        .disabled(formColegio == nil)
+                        .disabled(reservaTipoLibre ? formTitulo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty : formColegio == nil)
                 }
             }
-            .padding()
-            .frame(minWidth: 400, minHeight: 350)
+            .frame(minWidth: 420, minHeight: 440)
             .sheet(isPresented: $showingColegioSelector) {
                 SelectorContactoView(
                     seleccion: $dummySelection,
@@ -348,24 +510,31 @@ struct ReservasTabView: View {
     private func guardarReserva() {
         let reserva = editingReserva ?? Reserva(context: ctx)
         reserva.id = reserva.id ?? UUID()
-        reserva.contacto = formColegio
+        
+        if reservaTipoLibre {
+            reserva.contacto = nil
+            reserva.titulo = formTitulo.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            reserva.contacto = formColegio
+            reserva.titulo = nil
+        }
         reserva.notas = formNotas
         
         let calendar = Calendar.current
         var components = calendar.dateComponents([.year, .month, .day], from: selectedDate)
-        components.hour = selectedHour
+        components.hour = formHoraInicio
         components.minute = 0
         let startDate = calendar.date(from: components) ?? Date()
         
         var endComponents = components
-        endComponents.hour = (selectedHour ?? 8) + 1
-        let endDate = calendar.date(from: endComponents) ?? startDate.addingTimeInterval(3600)
+        endComponents.hour = formHoraFin
+        let endDate = calendar.date(from: endComponents) ?? startDate.addingTimeInterval(TimeInterval((formHoraFin - formHoraInicio) * 3600))
         
         reserva.fechaInicio = startDate
         reserva.fechaFin = endDate
         
         // Sincronizar con Google Calendar a través de EventKit
-        let title = "Visita: \(formColegio?.nombre ?? "Colegio")"
+        let title = reservaTipoLibre ? formTitulo.trimmingCharacters(in: .whitespacesAndNewlines) : "Visita: \(formColegio?.nombre ?? "Colegio")"
         if let eventID = syncManager.saveEvent(title: title, startDate: startDate, endDate: endDate, notes: formNotas, existingEventID: reserva.eventoID ?? formExternalEventID) {
             reserva.eventoID = eventID
         } else {

@@ -192,14 +192,30 @@ struct FacturaPDFGenerator {
 
         let cx = pageRect.width / 2 + 10; var cy = y - 32; let cw = pageRect.width - margin - cx
         txt("CLIENTE",                  x: cx, y: cy, w: cw, h: 12, font: fb9,  color: gray); cy += 14
-        txt(facturaData.clienteNombre,  x: cx, y: cy, w: cw, h: 15, font: fb11, color: black); cy += 16
+        
+        let nameFont = fb11
+        let nameStyle = NSMutableParagraphStyle()
+        nameStyle.lineBreakMode = .byWordWrapping
+        let nameRect = (facturaData.clienteNombre as NSString).boundingRect(
+            with: CGSize(width: cw, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: nameFont, .paragraphStyle: nameStyle],
+            context: nil
+        )
+        let nameHeight = max(15.0, ceil(nameRect.height))
+        txt(facturaData.clienteNombre,  x: cx, y: cy, w: cw, h: nameHeight, font: nameFont, color: black, wrap: true)
+        cy += nameHeight + 1
+        
         if !facturaData.clienteDireccion.isEmpty { txt(facturaData.clienteDireccion, x: cx, y: cy, w: cw, h: 12, font: f9, color: black); cy += 13 }
         let loc = "\(facturaData.clienteCP) \(facturaData.clienteCiudad)".trimmingCharacters(in: .whitespaces)
         if !loc.isEmpty { txt(loc, x: cx, y: cy, w: cw, h: 12, font: f9, color: black); cy += 13 }
         if !facturaData.clienteProvincia.isEmpty { txt(facturaData.clienteProvincia, x: cx, y: cy, w: cw, h: 12, font: f9, color: black); cy += 13 }
-        if !facturaData.clienteCIF.isEmpty { txt("CIF/NIF: \(facturaData.clienteCIF)", x: cx, y: cy, w: cw, h: 12, font: f9, color: black) }
+        if !facturaData.clienteCIF.isEmpty {
+            txt("CIF/NIF: \(facturaData.clienteCIF)", x: cx, y: cy, w: cw, h: 12, font: f9, color: black)
+            cy += 13
+        }
 
-        y += 70 // Aumentamos espacio entre cliente y tabla
+        y = max(y + 70, cy + 15) // Aumentamos espacio entre cliente y tabla
         // ── TABLA ─────────────────────────────────────────────────────────────
         let c0 = margin, c1: CGFloat = 370, c2: CGFloat = 430, c3: CGFloat = 510
         let tw = pageRect.width - margin * 2
@@ -213,16 +229,26 @@ struct FacturaPDFGenerator {
         y += 20; line(margin, cgY(y), pageRect.width - margin, cgY(y), color: gray.withAlphaComponent(0.4))
 
         for (i, l) in facturaData.lineas.enumerated() {
-            let rowH: CGFloat = l.isbn.isEmpty ? 20 : 28
+            let descStyle = NSMutableParagraphStyle()
+            descStyle.lineBreakMode = .byWordWrapping
+            let descRect = (l.productoNombre as NSString).boundingRect(
+                with: CGSize(width: 300, height: CGFloat.greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: f9, .paragraphStyle: descStyle],
+                context: nil
+            )
+            let descHeight = max(12.0, ceil(descRect.height))
+            let rowH: CGFloat = l.isbn.isEmpty ? (descHeight + 8) : (descHeight + 18)
+            
             if i % 2 == 1 { ctx.setFillColor(NSColor(white: 0.97, alpha: 1).cgColor); ctx.fill(CGRect(x: margin, y: cgY(y, rowH), width: tw, height: rowH)) }
-            txt(l.productoNombre, x: c0+4, y: y+4, w: 300, h: 12, font: f9, color: black)
+            txt(l.productoNombre, x: c0+4, y: y+4, w: 300, h: descHeight, font: f9, color: black, wrap: true)
             if !l.isbn.isEmpty {
-                txt("ISBN: \(l.isbn)", x: c0+4, y: y+16, w: 300, h: 10, font: NSFont.systemFont(ofSize: 8), color: gray)
+                txt("ISBN: \(l.isbn)", x: c0+4, y: y + 4 + descHeight, w: 300, h: 10, font: NSFont.systemFont(ofSize: 8), color: gray)
             }
             txt("\(l.cantidad)",                          x: c1, y: y+4, w: 55,                        h: 12, font: f9, color: black, align: .center)
             if facturaData.numero != "Muestra" {
-                txt(String(format: "%.2f €", l.precioUnitario), x: c2, y: y+4, w: 70,                     h: 12, font: f9, color: black, align: .right)
-                txt(String(format: "%.2f €", l.total),        x: c3, y: y+4, w: pageRect.width-margin-c3, h: 12, font: f9, color: black, align: .right)
+                txt(String(format: "%.3f", l.precioUnitario), x: c2, y: y+4, w: 70,                     h: 12, font: f9, color: black, align: .right)
+                txt(String(format: "%.2f", l.total),        x: c3, y: y+4, w: pageRect.width-margin-c3, h: 12, font: f9, color: black, align: .right)
             }
             y += rowH; line(margin, cgY(y), pageRect.width - margin, cgY(y), color: lgray)
         }
@@ -386,9 +412,20 @@ struct FacturaPDFGenerator {
             draw("CLIENTE", in: CGRect(x: clienteX, y: clienteY, width: clienteW, height: 12),
                  font: fontBold9, color: gray)
             clienteY += 14
-            draw(facturaData.clienteNombre, in: CGRect(x: clienteX, y: clienteY, width: clienteW, height: 15),
-                 font: fontBold11, color: black)
-            clienteY += 16
+            
+            let nameStyle = NSMutableParagraphStyle()
+            nameStyle.lineBreakMode = .byWordWrapping
+            let nameRect = (facturaData.clienteNombre as NSString).boundingRect(
+                with: CGSize(width: clienteW, height: CGFloat.greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: fontBold11, .paragraphStyle: nameStyle],
+                context: nil
+            )
+            let nameHeight = max(15.0, ceil(nameRect.height))
+            draw(facturaData.clienteNombre, in: CGRect(x: clienteX, y: clienteY, width: clienteW, height: nameHeight),
+                 font: fontBold11, color: black, wrap: true)
+            clienteY += nameHeight + 1
+            
             if !facturaData.clienteDireccion.isEmpty {
                 draw(facturaData.clienteDireccion, in: CGRect(x: clienteX, y: clienteY, width: clienteW, height: 12),
                      font: font9, color: black)
@@ -408,9 +445,10 @@ struct FacturaPDFGenerator {
             if !facturaData.clienteCIF.isEmpty {
                 draw("CIF/NIF: \(facturaData.clienteCIF)", in: CGRect(x: clienteX, y: clienteY, width: clienteW, height: 12),
                      font: font9, color: black)
+                clienteY += 13
             }
 
-            y += 60 // Más espacio entre cliente y tabla
+            y = max(y + 60, clienteY + 15) // Más espacio entre cliente y tabla
 
             // ─── TABLA DE PRODUCTOS ───────────────────────────────────
             y += 10
@@ -441,25 +479,35 @@ struct FacturaPDFGenerator {
 
             // Filas
             for (i, linea) in facturaData.lineas.enumerated() {
+                let descStyle = NSMutableParagraphStyle()
+                descStyle.lineBreakMode = .byWordWrapping
+                let descRect = (linea.productoNombre as NSString).boundingRect(
+                    with: CGSize(width: 300, height: CGFloat.greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: [.font: font9, .paragraphStyle: descStyle],
+                    context: nil
+                )
+                let descHeight = max(12.0, ceil(descRect.height))
+                let rowH: CGFloat = linea.isbn.isEmpty ? (descHeight + 8) : (descHeight + 18)
+                
                 let rowY = y
-                let rowH: CGFloat = linea.isbn.isEmpty ? 20 : 28
                 if i % 2 == 1 {
                     cgCtx.setFillColor(UIColor(white: 0.97, alpha: 1).cgColor)
                     cgCtx.fill(CGRect(x: margin, y: rowY, width: tableW, height: rowH))
                 }
-                draw(linea.productoNombre, in: CGRect(x: col0x + 4, y: rowY + 4, width: 300, height: 12),
-                     font: font9, color: black)
+                draw(linea.productoNombre, in: CGRect(x: col0x + 4, y: rowY + 4, width: 300, height: descHeight),
+                     font: font9, color: black, wrap: true)
                 if !linea.isbn.isEmpty {
-                    draw("ISBN: \(linea.isbn)", in: CGRect(x: col0x + 4, y: rowY + 16, width: 300, height: 10),
+                    draw("ISBN: \(linea.isbn)", in: CGRect(x: col0x + 4, y: rowY + 4 + descHeight, width: 300, height: 10),
                          font: font8, color: gray)
                 }
                 draw("\(linea.cantidad)", in: CGRect(x: col1x, y: rowY + 4, width: 55, height: 12),
                      font: font9, color: black, align: .center)
                 if facturaData.numero != "Muestra" {
-                    draw(String(format: "%.2f €", linea.precioUnitario),
+                    draw(String(format: "%.3f", linea.precioUnitario),
                          in: CGRect(x: col2x, y: rowY + 4, width: 70, height: 12),
                          font: font9, color: black, align: .right)
-                    draw(String(format: "%.2f €", linea.total),
+                    draw(String(format: "%.2f", linea.total),
                          in: CGRect(x: col3x, y: rowY + 4, width: pageRect.width - margin - col3x, height: 12),
                          font: font9, color: black, align: .right)
                 }
@@ -633,8 +681,8 @@ struct FacturaPDFView: View {
                         Text(linea.productoNombre).frame(maxWidth: .infinity, alignment: .leading)
                         Text("\(linea.cantidad)").frame(width: 50, alignment: .center)
                         if factura.numero != "Muestra" {
-                            Text(String(format: "%.2f €", linea.precioUnitario)).frame(width: 80, alignment: .trailing)
-                            Text(String(format: "%.2f €", linea.total)).frame(width: 80, alignment: .trailing)
+                            Text(String(format: "%.3f", linea.precioUnitario)).frame(width: 80, alignment: .trailing)
+                            Text(String(format: "%.2f", linea.total)).frame(width: 80, alignment: .trailing)
                         }
                     }
                    .font(.caption)

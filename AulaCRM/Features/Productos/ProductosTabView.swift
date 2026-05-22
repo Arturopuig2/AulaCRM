@@ -21,7 +21,7 @@ struct ProductosTabView: View {
     @Binding var mostrarNuevo: Bool
 
     @State private var productoAEditar: Producto?
-    @State private var mostrarEdicion = false
+    @State private var mostrarCreacion = false
     @State private var productoABorrar: Producto?
     @State private var mostrarConfirmacionBorrado = false
 
@@ -47,7 +47,13 @@ struct ProductosTabView: View {
     private var tablaDesktop: some View {
         Table(of: Producto.self, sortOrder: $sortOrder) {
             TableColumn("Nombre" as LocalizedStringKey, value: \.sortNombre) { (item: Producto) in
-                Text(item.nombre ?? "—")
+                Button {
+                    productoAEditar = item
+                } label: {
+                    Text(item.nombre ?? "—")
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
             }
             
             TableColumn("ISBN" as LocalizedStringKey, value: \.sortISBN) { (item: Producto) in
@@ -69,7 +75,6 @@ struct ProductosTabView: View {
                 HStack(spacing: 12) {
                     Button {
                         productoAEditar = item
-                        mostrarEdicion = true
                     } label: {
                         Image(systemName: "pencil")
                             .foregroundColor(.blue)
@@ -99,21 +104,27 @@ struct ProductosTabView: View {
             #if os(iOS)
             if UIDevice.current.userInterfaceIdiom == .phone {
                 List(productos) { item in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(item.nombre ?? "—")
-                            .font(.headline)
-                        
-                        Text("ISBN: \(item.isbn ?? "—")")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        
-                        HStack {
-                            Text("Stock: \(stockTexto(item))")
+                    Button {
+                        productoAEditar = item
+                    } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(item.nombre ?? "—")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text("ISBN: \(item.isbn ?? "—")")
                                 .font(.subheadline)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.secondary)
+                            
+                            HStack {
+                                Text("Stock: \(stockTexto(item))")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.blue)
+                            }
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
                 }
                 .listStyle(.plain)
             } else {
@@ -125,13 +136,16 @@ struct ProductosTabView: View {
         }
         .onChange(of: mostrarNuevo) { _, nuevo in
             if nuevo {
-                productoAEditar = nil
-                mostrarEdicion  = true
+                mostrarCreacion = true
                 mostrarNuevo    = false
             }
         }
-        .sheet(isPresented: $mostrarEdicion) {
-            SheetNuevoProducto(productoAEditar: productoAEditar)
+        .sheet(isPresented: $mostrarCreacion) {
+            SheetNuevoProducto(productoAEditar: nil)
+                .environment(\.managedObjectContext, ctx)
+        }
+        .sheet(item: $productoAEditar) { item in
+            SheetNuevoProducto(productoAEditar: item)
                 .environment(\.managedObjectContext, ctx)
         }
         .alert("Borrar Producto", isPresented: $mostrarConfirmacionBorrado) {
@@ -192,6 +206,7 @@ struct SheetNuevoProducto: View {
     @State private var curso = ""
     @State private var precio = ""
     @State private var depositolegal = ""
+    @State private var stock = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -217,10 +232,48 @@ struct SheetNuevoProducto: View {
                     // Sección: Inventario y Ventas
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Inventario y Ventas").font(.caption).bold().foregroundStyle(.secondary)
-                        TextField("Precio (€)", text: $precio).textFieldStyle(.roundedBorder)
-                        #if os(iOS)
-                        .keyboardType(.decimalPad)
-                        #endif
+                        
+                        HStack(spacing: 20) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Precio (€)").font(.caption2).foregroundStyle(.secondary)
+                                TextField("0.00", text: $precio)
+                                    .textFieldStyle(.roundedBorder)
+                                    #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                    #endif
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Stock").font(.caption2).foregroundStyle(.secondary)
+                                HStack(spacing: 8) {
+                                    Button(action: {
+                                        if stock > 0 { stock -= 1 }
+                                    }) {
+                                        Image(systemName: "minus.circle.fill")
+                                            .font(.title3)
+                                            .foregroundColor(.blue)
+                                    }
+                                    .buttonStyle(.plain)
+                                    
+                                    TextField("0", value: $stock, format: .number)
+                                        .textFieldStyle(.roundedBorder)
+                                        .multilineTextAlignment(.center)
+                                        .frame(width: 80)
+                                        #if os(iOS)
+                                        .keyboardType(.numberPad)
+                                        #endif
+                                    
+                                    Button(action: {
+                                        stock += 1
+                                    }) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.title3)
+                                            .foregroundColor(.blue)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
                     }
                 }
                 .padding(.top, 4)
@@ -250,6 +303,9 @@ struct SheetNuevoProducto: View {
                         prod.setValue(val, forKey: "precio")
                     }
                     
+                    // Guardar stock
+                    prod.setValue(Int16(max(0, stock)), forKey: "stock")
+                    
                     try? ctx.save()
                     dismiss()
                 }
@@ -269,6 +325,9 @@ struct SheetNuevoProducto: View {
                 
                 let pVal = (p.value(forKey: "precio") as? NSNumber)?.doubleValue ?? 0.0
                 precio = String(format: "%.2f", pVal)
+                
+                let sVal = (p.value(forKey: "stock") as? NSNumber)?.intValue ?? Int(p.stock)
+                stock = sVal
             }
         }
     }

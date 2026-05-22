@@ -9,6 +9,7 @@ struct NuevaFacturaView: View {
     
     @State private var numero = ""
     @State private var fecha = Date()
+    @State private var fechaCobro: Date? = nil
     @State private var clienteID: NSManagedObjectID?
     @State private var clienteNombre = ""
     @State private var clienteDireccion = ""
@@ -104,6 +105,7 @@ struct NuevaFacturaView: View {
                 if let f = facturaAEditar {
                     numero = f.numero ?? ""
                     fecha = f.fecha ?? Date()
+                    fechaCobro = f.fechaCobro
                     clienteNombre = f.clienteNombre ?? ""
                     clienteDireccion = f.clienteDireccion ?? ""
                     clienteCP = f.clienteCP ?? ""
@@ -111,7 +113,11 @@ struct NuevaFacturaView: View {
                     clienteProvincia = f.clienteProvincia ?? ""
                     clienteCIF = f.clienteCIF ?? ""
                     clienteOtro = f.clienteOtro ?? ""
-                    porcIva = f.iva > 0 ? f.iva : 0.04
+                    if let savedIva = f.value(forKey: "iva") as? Double {
+                        porcIva = savedIva
+                    } else {
+                        porcIva = 0.04
+                    }
                     notas = f.notas ?? ""
                     if let lines = f.lineas as? Set<LineaFactura> {
                         lineas = lines.map { LineaTemp(productoNombre: $0.productoNombre ?? "", isbn: ($0.value(forKey: "isbn") as? String) ?? "", cantidad: Int($0.cantidad), precioUnitario: $0.precioUnitario) }
@@ -134,12 +140,58 @@ struct NuevaFacturaView: View {
     
     private var datosGeneralesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "doc.text.fill")
-                Text("Datos Generales")
+            HStack(alignment: .center) {
+                HStack {
+                    Image(systemName: "doc.text.fill")
+                    Text("Datos Generales")
+                }
+                .font(.headline)
+                .foregroundStyle(.blue)
+                
+                Spacer()
+                
+                // Fecha de Cobro selector in the top-right corner
+                HStack(spacing: 8) {
+                    Text("Cobrada:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    if let dateValue = fechaCobro {
+                        DatePicker("", selection: Binding(
+                            get: { dateValue },
+                            set: { fechaCobro = $0 }
+                        ), displayedComponents: .date)
+                        .labelsHidden()
+                        #if os(macOS)
+                        .datePickerStyle(.field)
+                        #else
+                        .datePickerStyle(.compact)
+                        #endif
+                        .frame(width: 100)
+                        
+                        Button {
+                            fechaCobro = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Button {
+                            fechaCobro = Date()
+                        } label: {
+                            Text("Establecer...")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
-            .font(.headline)
-            .foregroundStyle(.blue)
             
             Grid(alignment: .leading, horizontalSpacing: 15, verticalSpacing: 12) {
                 GridRow {
@@ -154,7 +206,9 @@ struct NuevaFacturaView: View {
                 GridRow {
                     Spacer()
                     Toggle("Es una Salida de Muestras", isOn: $esMuestra)
+                        #if os(macOS)
                         .toggleStyle(.checkbox)
+                        #endif
                         #if os(iOS)
                         .padding(.vertical, 4)
                         #endif
@@ -313,7 +367,7 @@ struct NuevaFacturaView: View {
                                     .multilineTextAlignment(.center)
                                 
                                 if !esMuestra {
-                                    TextField("Precio", value: $lineas[index].precioUnitario, format: .currency(code: "EUR"))
+                                    TextField("Precio", value: $lineas[index].precioUnitario, format: .currency(code: "EUR").precision(.fractionLength(3)))
                                         .textFieldStyle(.roundedBorder)
                                         .frame(width: 90)
                                         .multilineTextAlignment(.trailing)
@@ -433,6 +487,7 @@ struct NuevaFacturaView: View {
         f.id = f.id ?? UUID()
         f.numero = numero
         f.fecha = fecha
+        f.fechaCobro = fechaCobro
         f.notas = notas
         f.baseImponible = baseImponible
         f.iva = porcIva

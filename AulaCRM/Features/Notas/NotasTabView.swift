@@ -11,7 +11,6 @@ struct NotasTabView: View {
     // UI State
     @State private var seleccionNota: NotaLibre? = nil
     @State private var textoNuevaNota: String = ""
-    @State private var mostrarEditorNota = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -77,7 +76,6 @@ struct NotasTabView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 seleccionNota = nota
-                                mostrarEditorNota = true
                             }
                         }
                     }
@@ -86,10 +84,8 @@ struct NotasTabView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .sheet(isPresented: $mostrarEditorNota) {
-            if let nota = seleccionNota {
-                EditorNotaView(nota: nota)
-            }
+        .sheet(item: $seleccionNota) { nota in
+            EditorNotaView(nota: nota)
         }
     }
     
@@ -102,7 +98,6 @@ struct NotasTabView: View {
         n.fecha = Date()
         
         seleccionNota = n
-        mostrarEditorNota = true
     }
     
     private func añadirNotaList() {

@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 struct FacturasTabView: View {
     @Environment(\.managedObjectContext) private var ctx
     @FetchRequest(
-        sortDescriptors: [SortDescriptor(\Factura.fecha, order: .reverse)],
+        sortDescriptors: [SortDescriptor(\Factura.numero, order: .forward)],
         animation: .default
     ) private var facturas: FetchedResults<Factura>
 
@@ -15,6 +15,9 @@ struct FacturasTabView: View {
     @State private var mostrarConfirmacionBorrado = false
     @State private var facturaABorrar: Factura?
     @State private var filterEmisor = "Todos"
+    @State private var sortOrder: [SortDescriptor<Factura>] = [
+        .init(\Factura.sortNumero, order: .forward)
+    ]
 
     var filteredFacturas: [Factura] {
         var base = Array(facturas)
@@ -31,6 +34,36 @@ struct FacturasTabView: View {
                 ($0.clienteNombre ?? "").localizedCaseInsensitiveContains(searchText)
             }
         }
+    }
+
+    var sortedFacturas: [Factura] {
+        if let firstSort = sortOrder.first, firstSort.keyPath == \Factura.sortNumero {
+            return filteredFacturas.sorted { f1, f2 in
+                let n1 = f1.numero ?? ""
+                let n2 = f2.numero ?? ""
+                let result = n1.localizedStandardCompare(n2)
+                return firstSort.order == .forward ? (result == .orderedAscending) : (result == .orderedDescending)
+            }
+        }
+        return filteredFacturas.sorted(using: sortOrder)
+    }
+
+    var totalBaseImponible: Double {
+        filteredFacturas
+            .filter { $0.numero != "Muestra" }
+            .reduce(0) { $0 + $1.baseImponible }
+    }
+
+    var totalIva: Double {
+        filteredFacturas
+            .filter { $0.numero != "Muestra" }
+            .reduce(0) { $0 + ($1.baseImponible * $1.iva) }
+    }
+
+    var totalFacturas: Double {
+        filteredFacturas
+            .filter { $0.numero != "Muestra" }
+            .reduce(0) { $0 + $1.total }
     }
 
     private let fechaFormatter: DateFormatter = {
@@ -62,86 +95,105 @@ struct FacturasTabView: View {
             .padding()
             #endif
 
-            List {
-                ForEach(filteredFacturas) { factura in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            HStack(spacing: 8) {
-                                Text(factura.numero ?? "Sin número")
-                                    .font(.headline)
+            #if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                List {
+                    ForEach(sortedFacturas) { factura in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    Text(factura.numero ?? "Sin número")
+                                        .font(.headline)
+                                    
+                                    Text("-")
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text(factura.clienteNombre ?? "Sin cliente")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
                                 
-                                // Indicador de emisor
-                                let emisor = (factura.value(forKey: "emisor") as? String) ?? "Aula"
-                                Text(emisor == "Itbook" ? "ITBOOK" : "AULA")
-                                    .font(.system(size: 8, weight: .black))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(emisor == "Itbook" ? Color.orange.opacity(0.15) : Color.blue.opacity(0.15))
-                                    .foregroundStyle(emisor == "Itbook" ? Color.orange : Color.blue)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .stroke(emisor == "Itbook" ? Color.orange.opacity(0.5) : Color.blue.opacity(0.5), lineWidth: 0.5)
-                                    )
-                                
-                                if factura.numero == "Muestra" {
-                                    Text("MUESTRA")
+                                HStack(spacing: 8) {
+                                    // Indicador de emisor
+                                    let emisor = (factura.value(forKey: "emisor") as? String) ?? "Aula"
+                                    Text(emisor == "Itbook" ? "ITBOOK" : "AULA")
                                         .font(.system(size: 8, weight: .black))
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(Color.green.opacity(0.15))
-                                        .foregroundStyle(Color.green)
+                                        .background(emisor == "Itbook" ? Color.orange.opacity(0.15) : Color.blue.opacity(0.15))
+                                        .foregroundStyle(emisor == "Itbook" ? Color.orange : Color.blue)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 4)
-                                                .stroke(Color.green.opacity(0.5), lineWidth: 0.5)
+                                                .stroke(emisor == "Itbook" ? Color.orange.opacity(0.5) : Color.blue.opacity(0.5), lineWidth: 0.5)
                                         )
+                                    
+                                    if factura.numero == "Muestra" {
+                                        Text("MUESTRA")
+                                            .font(.system(size: 8, weight: .black))
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.green.opacity(0.15))
+                                            .foregroundStyle(Color.green)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .stroke(Color.green.opacity(0.5), lineWidth: 0.5)
+                                            )
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text(factura.fecha.map { fechaFormatter.string(from: $0) } ?? "—")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        if let fechaCobro = factura.fechaCobro {
+                                            Text("Cobro: \(fechaFormatter.string(from: fechaCobro))")
+                                                .font(.system(size: 10))
+                                                .foregroundColor(.green)
+                                        }
+                                    }
+                                    
+                                    if factura.numero != "Muestra" {
+                                        Text(String(format: "%.2f €", factura.total))
+                                            .font(.body)
+                                            .fontWeight(.bold)
+                                    }
                                 }
                             }
                             
-                            Text(factura.clienteNombre ?? "Sin cliente")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
+                            HStack(spacing: 12) {
+                                Button {
+                                    facturaParaEditar = factura
+                                } label: {
+                                    Image(systemName: "pencil")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(.plain)
 
-                        Spacer()
+                                PDFExportButton(factura: factura)
 
-                        VStack(alignment: .trailing) {
-                            Text(factura.fecha.map { fechaFormatter.string(from: $0) } ?? "—")
-                                .font(.caption)
-                            
-                            if factura.numero != "Muestra" {
-                                Text(String(format: "%.2f €", factura.total))
-                                    .font(.body)
-                                    .fontWeight(.bold)
+                                Button {
+                                    facturaABorrar = factura
+                                    mostrarConfirmacionBorrado = true
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .foregroundColor(.red)
+                                }
+                                .buttonStyle(.plain)
                             }
+                            .padding(.leading)
                         }
-
-                        HStack(spacing: 12) {
-                            Button {
-                                facturaParaEditar = factura
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .foregroundColor(.blue)
-                            }
-                            .buttonStyle(.plain)
-
-                            // Botón PDF: solo en macOS, usando .fileExporter (sin NSSavePanel)
-                            PDFExportButton(factura: factura)
-
-                            Button {
-                                facturaABorrar = factura
-                                mostrarConfirmacionBorrado = true
-                            } label: {
-                                Image(systemName: "trash")
-                                    .foregroundColor(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.leading)
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
                 }
+                .listStyle(.plain)
+            } else {
+                tablaDesktop
             }
-            .listStyle(.plain)
+            #else
+            tablaDesktop
+            #endif
         }
         #if os(iOS)
         .searchable(text: $searchText, prompt: "Buscar factura...")
@@ -201,6 +253,170 @@ struct FacturasTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MostrarNuevaFactura"))) { _ in
             facturaParaEditar = nil
             mostrarNuevaFactura = true
+        }
+    }
+
+    private var tablaDesktop: some View {
+        VStack(spacing: 0) {
+            Table(of: Factura.self, sortOrder: $sortOrder) {
+                TableColumn("Factura" as LocalizedStringKey, value: \.sortNumero) { (factura: Factura) in
+                    HStack(spacing: 8) {
+                        Spacer()
+                        if factura.numero == "Muestra" {
+                            Text("MUESTRA")
+                                .font(.system(size: 8, weight: .black))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.green.opacity(0.15))
+                                .foregroundStyle(Color.green)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(Color.green.opacity(0.5), lineWidth: 0.5)
+                                    )
+                        } else {
+                            Text(factura.numero ?? "Sin número")
+                                .font(.headline)
+                        }
+                    }
+                }
+                .width(90)
+                .alignment(.trailing)
+                    
+                TableColumn("Proyecto" as LocalizedStringKey, value: \.sortProyecto) { (factura: Factura) in
+                    HStack {
+                        Spacer()
+                        let emisor = (factura.value(forKey: "emisor") as? String) ?? "Aula"
+                        Text(emisor == "Itbook" ? "ITBOOK" : "AULA")
+                            .font(.system(size: 8, weight: .black))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(emisor == "Itbook" ? Color.orange.opacity(0.15) : Color.blue.opacity(0.15))
+                            .foregroundStyle(emisor == "Itbook" ? Color.orange : Color.blue)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(emisor == "Itbook" ? Color.orange.opacity(0.5) : Color.blue.opacity(0.5), lineWidth: 0.5)
+                            )
+                        Spacer()
+                    }
+                }
+                .width(60)
+                .alignment(.center)
+                    
+                    TableColumn("Cliente" as LocalizedStringKey, value: \.sortCliente) { (factura: Factura) in
+                        Text(factura.clienteNombre ?? "Sin cliente")
+                            .font(.body)
+                            .lineLimit(1)
+                    }
+                    
+                    TableColumn("Fecha" as LocalizedStringKey, value: \.sortFecha) { (factura: Factura) in
+                        Text(factura.fecha.map { fechaFormatter.string(from: $0) } ?? "—")
+                    }
+                    .width(100)
+                    .alignment(.trailing)
+                    
+                    TableColumn("Cobrada" as LocalizedStringKey, value: \.sortFechaCobro) { (factura: Factura) in
+                        Text(factura.fechaCobro.map { fechaFormatter.string(from: $0) } ?? "—")
+                    }
+                    .width(100)
+                    .alignment(.trailing)
+
+                    TableColumn("Base I." as LocalizedStringKey, value: \.baseImponible) { (factura: Factura) in
+                        if factura.numero != "Muestra" {
+                            Text(String(format: "%.2f €", factura.baseImponible))
+                        } else {
+                            Text("—")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .width(100)
+                    .alignment(.trailing)
+
+                    TableColumn("Iva" as LocalizedStringKey, value: \.iva) { (factura: Factura) in
+                        if factura.numero != "Muestra" {
+                            let pct = Int(round(factura.iva * 100))
+                            let amount = factura.baseImponible * factura.iva
+                            Text(String(format: "%d%% (%.2f €)", pct, amount))
+                        } else {
+                            Text("—")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .width(110)
+                    .alignment(.trailing)
+                    
+                    TableColumn("Total" as LocalizedStringKey, value: \.sortTotal) { (factura: Factura) in
+                        if factura.numero != "Muestra" {
+                            Text(String(format: "%.2f €", factura.total))
+                                .fontWeight(.bold)
+                        } else {
+                            Text("—")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .width(100)
+                    .alignment(.trailing)
+                    
+                    TableColumn("Acciones") { (factura: Factura) in
+                        HStack(spacing: 12) {
+                            Button {
+                                facturaParaEditar = factura
+                            } label: {
+                                Image(systemName: "pencil")
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(.plain)
+
+                            PDFExportButton(factura: factura)
+
+                            Button {
+                                facturaABorrar = factura
+                                mostrarConfirmacionBorrado = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .width(100)
+                } rows: {
+                    ForEach(sortedFacturas) { factura in
+                        TableRow(factura)
+                    }
+                }
+            
+            Divider()
+            
+            HStack(spacing: 0) {
+                Spacer()
+                
+                Text("Totales:")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                    .frame(width: 200, alignment: .trailing)
+                
+                Text(String(format: "%.2f €", totalBaseImponible))
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .frame(width: 100, alignment: .trailing)
+                
+                Text(String(format: "%.2f €", totalIva))
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .frame(width: 110, alignment: .trailing)
+                
+                Text(String(format: "%.2f €", totalFacturas))
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.blue)
+                    .frame(width: 100, alignment: .trailing)
+                
+                Spacer()
+                    .frame(width: 100)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(Color.gray.opacity(0.05))
         }
     }
 }
