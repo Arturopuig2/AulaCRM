@@ -52,7 +52,7 @@ struct ContentView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .frame(width: 600) // Aumentado para acomodar la nueva pestaña Notas
+        .frame(width: 720) // Aumentado para acomodar la nueva pestaña Campañas
     }
     
     
@@ -65,6 +65,7 @@ struct ContentView: View {
         case reservas = "Calendario"
         case tareas = "Tareas"
         case notas = "Notas"
+        case campanas = "Campañas"
         
         var displayName: String {
             return self.rawValue
@@ -250,6 +251,8 @@ struct ContentView: View {
                             TareasTabView(mostrarNuevoToDo: $mostrarNuevoToDo)
                         case .notas:
                             NotasTabView()
+                        case .campanas:
+                            CampanasTabView()
                         }
                     }
                 #if os(macOS)
@@ -349,6 +352,13 @@ struct ContentView: View {
                                         Label("Nueva Factura", systemImage: "plus")
                                     }
                                     .help("Crear nueva factura")
+                                case .campanas:
+                                    Button {
+                                        NotificationCenter.default.post(name: NSNotification.Name("CrearNuevaPlantillaEmail"), object: nil)
+                                    } label: {
+                                        Label("Nueva Plantilla", systemImage: "plus")
+                                    }
+                                    .help("Crear nueva plantilla de correo")
                                 default:
                                     EmptyView()
                                 }

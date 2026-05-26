@@ -11,11 +11,17 @@ import CoreData
 #if os(iOS)
 import UIKit
 #endif
+#if os(macOS)
+import AppKit
+#endif
 
 struct DetailTabView: View {
     @Environment(\.managedObjectContext) private var ctx
     @Environment(\.openURL) private var openURL
     @ObservedObject var contacto: Contacto
+    
+    @FetchRequest(sortDescriptors: [SortDescriptor(\PlantillaEmail.titulo)])
+    private var plantillas: FetchedResults<PlantillaEmail>
     var contactosFiltrados: [Contacto] = []
     @Binding var showAllPins: Bool
     @Binding var selectedContact: Contacto?
@@ -114,16 +120,34 @@ struct DetailTabView: View {
                         }
                         
                         if let email = contacto.email, !email.isEmpty {
-                            Button {
-                                if let url = URL(string: "mailto:\(email)?subject=Consulta%20AulaCRM") {
-                                    openURL(url)
+                            HStack(spacing: 6) {
+                                Button {
+                                    if let url = URL(string: "mailto:\(email)?subject=Consulta%20AulaCRM") {
+                                        openURL(url)
+                                    }
+                                } label: {
+                                    Image(systemName: "envelope")
+                                        .help("Enviar correo básico")
                                 }
-                            } label: {
-                                Image(systemName: "envelope")
-                                    .help("Enviar correo")
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                
+                                if !plantillas.isEmpty {
+                                    Menu {
+                                        ForEach(plantillas) { plantilla in
+                                            Button(plantilla.titulo ?? "Sin título") {
+                                                enviarPlantilla(plantilla)
+                                            }
+                                        }
+                                    } label: {
+                                        Image(systemName: "paperplane.fill")
+                                    }
+                                    .menuStyle(.borderlessButton)
+                                    .frame(width: 28, height: 24)
+                                    .controlSize(.small)
+                                    .help("Enviar Campaña de Correo")
+                                }
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
                         }
                     }
                 }
@@ -306,15 +330,31 @@ struct DetailTabView: View {
                         
                         if let email = contacto.email, !email.isEmpty {
                             Spacer()
-                            Button {
-                                if let url = URL(string: "mailto:\(email)?subject=Consulta%20AulaCRM") {
-                                    openURL(url)
+                            HStack(spacing: 12) {
+                                Button {
+                                    if let url = URL(string: "mailto:\(email)?subject=Consulta%20AulaCRM") {
+                                        openURL(url)
+                                    }
+                                } label: {
+                                    Image(systemName: "envelope")
+                                        .foregroundStyle(.blue)
                                 }
-                            } label: {
-                                Image(systemName: "paperplane.fill")
-                                    .foregroundStyle(.blue)
+                                .buttonStyle(.borderless)
+                                
+                                if !plantillas.isEmpty {
+                                    Menu {
+                                        ForEach(plantillas) { plantilla in
+                                            Button(plantilla.titulo ?? "Sin título") {
+                                                enviarPlantilla(plantilla)
+                                            }
+                                        }
+                                    } label: {
+                                        Image(systemName: "paperplane.fill")
+                                            .foregroundStyle(.blue)
+                                    }
+                                    .menuStyle(.borderlessButton)
+                                }
                             }
-                            .buttonStyle(.borderless)
                         }
                     }
                 }
@@ -363,6 +403,61 @@ struct DetailTabView: View {
         #if os(iOS)
         .navigationBarBackButtonHidden(UIDevice.current.userInterfaceIdiom == .phone)
         #endif
+    }
+    
+    // MARK: - Envío de Plantillas
+    private func enviarPlantilla(_ plantilla: PlantillaEmail) {
+        guard let email = contacto.email, !email.isEmpty else { return }
+        
+        let asunto = plantilla.asunto ?? "Propuesta Aula"
+        let cuerpoHTML = plantilla.cuerpoHTML ?? ""
+        
+        let mockValues = [
+            "{{nombre}}": contacto.nombre ?? "",
+            "{{ciudad}}": contacto.ciudad ?? "",
+            "{{provincia}}": contacto.provincia ?? "",
+            "{{direccion}}": contacto.direccion ?? "",
+            "{{cif}}": contacto.cifSafe,
+            "{{telefono}}": contacto.telefono ?? "",
+            "{{notas}}": contacto.notas ?? ""
+        ]
+        
+        var processedHtml = cuerpoHTML
+        var processedAsunto = asunto
+        
+        for (placeholder, val) in mockValues {
+            processedHtml = processedHtml.replacingOccurrences(of: placeholder, with: val)
+            processedAsunto = processedAsunto.replacingOccurrences(of: placeholder, with: val)
+        }
+        
+        #if os(macOS)
+        // 1. Copiar el HTML al portapapeles con formato HTML nativo
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.declareTypes([.html, .string], owner: nil)
+        pasteboard.setString(processedHtml, forType: .html)
+        
+        // Poner texto plano como fallback
+        let plainText = stripHTML(html: processedHtml)
+        pasteboard.setString(plainText, forType: .string)
+        
+        // 2. Abrir Mail.app con destinatario y asunto vacíos de cuerpo para pegar directamente
+        let subjectEncoded = processedAsunto.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let url = URL(string: "mailto:\(email)?subject=\(subjectEncoded)") {
+            openURL(url)
+        }
+        #else
+        let subjectEncoded = processedAsunto.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let plainText = stripHTML(html: processedHtml)
+        let bodyEncoded = plainText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let url = URL(string: "mailto:\(email)?subject=\(subjectEncoded)&body=\(bodyEncoded)") {
+            openURL(url)
+        }
+        #endif
+    }
+    
+    private func stripHTML(html: String) -> String {
+        return html.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
     }
 }
 

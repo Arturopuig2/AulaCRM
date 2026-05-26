@@ -123,4 +123,11 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="titulo" optional="YES" attributeType="String"/>
     </entity>
+    <entity name="PlantillaEmail" representedClassName="PlantillaEmail" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="titulo" optional="YES" attributeType="String"/>
+        <attribute name="asunto" optional="YES" attributeType="String"/>
+        <attribute name="cuerpoHTML" optional="YES" attributeType="String"/>
+        <attribute name="fechaCreacion" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>
