@@ -137,122 +137,118 @@ struct CampanaEjecucionView: View {
                         .padding(.top, 4)
                     
                     if !queueManager.isSending {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 14) {
-                                // Selección de Destinatarios (Filtros idénticos a Colegios)
-                                VStack(alignment: .leading, spacing: 8) {
-                                    FilterView(
-                                        showFilters: $showFilters,
-                                        selectedProvincia: $selectedProvincia,
-                                        selectedCiudad: $selectedCiudad,
-                                        selectedCP: $selectedCP,
-                                        selectedRegimen: $selectedRegimen,
-                                        selectedCliente: $selectedCliente,
-                                        provinciasUnicas: provinciasUnicas,
-                                        ciudadesUnicas: ciudadesUnicas,
-                                        cpsUnicos: cpsUnicos,
-                                        regimenesUnicos: regimenesUnicos
-                                    )
-                                }
-                                .padding(10)
-                                .background(Color(nsColor: .windowBackgroundColor))
-                                .cornerRadius(8)
-                                
-                                // Listado de colegios con checkbox para habilitar/deshabilitar
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text("Colegios a Enviar")
-                                            .font(.subheadline)
-                                            .bold()
-                                        Spacer()
-                                        Button("Desmarcar Todos") {
-                                            for c in destinatariosFiltrados {
-                                                excludedContactIDs.insert(c.objectID)
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                        
-                                        Text("|").font(.caption).foregroundColor(.secondary)
-                                        
-                                        Button("Marcar Todos") {
-                                            for c in destinatariosFiltrados {
-                                                excludedContactIDs.remove(c.objectID)
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                    }
-                                    .padding(.top, 2)
-                                    
-                                    ScrollView {
-                                        LazyVStack(alignment: .leading, spacing: 4) {
-                                            ForEach(destinatariosFiltrados) { contacto in
-                                                let isIncluded = !excludedContactIDs.contains(contacto.objectID)
-                                                HStack(spacing: 8) {
-                                                    Button(action: {
-                                                        if isIncluded {
-                                                            excludedContactIDs.insert(contacto.objectID)
-                                                        } else {
-                                                            excludedContactIDs.remove(contacto.objectID)
-                                                        }
-                                                    }) {
-                                                        Image(systemName: isIncluded ? "checkmark.square.fill" : "square")
-                                                            .foregroundColor(.blue)
-                                                            .font(.title3)
-                                                    }
-                                                    .buttonStyle(.plain)
-                                                    
-                                                    VStack(alignment: .leading, spacing: 1) {
-                                                        Text(contacto.nombre ?? "Sin nombre")
-                                                            .font(.body)
-                                                            .lineLimit(1)
-                                                        Text(contacto.email ?? "")
-                                                            .font(.caption)
-                                                            .foregroundStyle(.secondary)
-                                                            .lineLimit(1)
-                                                    }
-                                                    Spacer()
-                                                }
-                                                .padding(.vertical, 2)
-                                                Divider()
-                                            }
-                                        }
-                                    }
-                                    .frame(height: 180)
-                                    .padding(6)
-                                    .background(Color(nsColor: .textBackgroundColor))
-                                    .cornerRadius(6)
-                                    .border(Color.secondary.opacity(0.15))
-                                }
-                                .padding(10)
-                                .background(Color(nsColor: .windowBackgroundColor))
-                                .cornerRadius(8)
-                                
-                                // Configuración del Retardo
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        Text("Retardo entre Envíos:")
-                                            .bold()
-                                        Spacer()
-                                        Text("\(Int(delaySeconds)) segundos")
-                                            .foregroundColor(.blue)
-                                            .bold()
-                                    }
-                                    
-                                    Slider(value: $delaySeconds, in: 5...120, step: 5)
-                                    
-                                    Text("Espaciar los correos previene que tu servidor sea bloqueado o clasificado como spam.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(10)
-                                .background(Color(nsColor: .windowBackgroundColor))
-                                .cornerRadius(8)
-                            }
+                        // Selección de Destinatarios (Filtros idénticos a Colegios)
+                        VStack(alignment: .leading, spacing: 8) {
+                            FilterView(
+                                showFilters: $showFilters,
+                                selectedProvincia: $selectedProvincia,
+                                selectedCiudad: $selectedCiudad,
+                                selectedCP: $selectedCP,
+                                selectedRegimen: $selectedRegimen,
+                                selectedCliente: $selectedCliente,
+                                provinciasUnicas: provinciasUnicas,
+                                ciudadesUnicas: ciudadesUnicas,
+                                cpsUnicos: cpsUnicos,
+                                regimenesUnicos: regimenesUnicos
+                            )
                         }
+                        .padding(10)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .cornerRadius(8)
+                        
+                        // Listado de colegios con checkbox para habilitar/deshabilitar
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Colegios a Enviar")
+                                    .font(.subheadline)
+                                    .bold()
+                                Spacer()
+                                Button("Desmarcar Todos") {
+                                    for c in destinatariosFiltrados {
+                                        excludedContactIDs.insert(c.objectID)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                                
+                                Text("|").font(.caption).foregroundColor(.secondary)
+                                
+                                Button("Marcar Todos") {
+                                    for c in destinatariosFiltrados {
+                                        excludedContactIDs.remove(c.objectID)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            }
+                            .padding(.top, 2)
+                            
+                            ScrollView {
+                                LazyVStack(alignment: .leading, spacing: 4) {
+                                    ForEach(destinatariosFiltrados) { contacto in
+                                        let isIncluded = !excludedContactIDs.contains(contacto.objectID)
+                                        HStack(spacing: 8) {
+                                            Button(action: {
+                                                if isIncluded {
+                                                    excludedContactIDs.insert(contacto.objectID)
+                                                } else {
+                                                    excludedContactIDs.remove(contacto.objectID)
+                                                }
+                                            }) {
+                                                Image(systemName: isIncluded ? "checkmark.square.fill" : "square")
+                                                    .foregroundColor(.blue)
+                                                    .font(.title3)
+                                            }
+                                            .buttonStyle(.plain)
+                                            
+                                            VStack(alignment: .leading, spacing: 1) {
+                                                Text(contacto.nombre ?? "Sin nombre")
+                                                    .font(.body)
+                                                    .lineLimit(1)
+                                                Text(contacto.email ?? "")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
+                                            }
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, 2)
+                                        Divider()
+                                    }
+                                }
+                            }
+                            .frame(height: 180)
+                            .padding(6)
+                            .background(Color(nsColor: .textBackgroundColor))
+                            .cornerRadius(6)
+                            .border(Color.secondary.opacity(0.15))
+                        }
+                        .padding(10)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .cornerRadius(8)
+                        
+                        // Configuración del Retardo
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Retardo entre Envíos:")
+                                    .bold()
+                                Spacer()
+                                Text("\(Int(delaySeconds)) segundos")
+                                    .foregroundColor(.blue)
+                                    .bold()
+                            }
+                            
+                            Slider(value: $delaySeconds, in: 5...120, step: 5)
+                            
+                            Text("Espaciar los correos previene que tu servidor sea bloqueado o clasificado como spam.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(10)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .cornerRadius(8)
                     } else {
                         // Mostrar filtros bloqueados mientras envía
                         VStack(alignment: .leading, spacing: 8) {
