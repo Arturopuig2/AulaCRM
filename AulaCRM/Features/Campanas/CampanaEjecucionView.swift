@@ -29,6 +29,9 @@ struct CampanaEjecucionView: View {
     @State private var showFilters       = true
     @State private var delaySeconds: Double = 45.0
     
+    // Estado para guardar las exclusiones manuales de colegios
+    @State private var excludedContactIDs = Set<NSManagedObjectID>()
+    
     init(plantilla: PlantillaEmail, context: NSManagedObjectContext) {
         self.plantilla = plantilla
         _queueManager = StateObject(wrappedValue: CampanaQueueManager(viewContext: context))
@@ -77,7 +80,7 @@ struct CampanaEjecucionView: View {
         return ["Todos"] + Array(Set(list)).sorted()
     }
     
-    // Destinatarios filtrados listos para recibir el correo
+    // Destinatarios que coinciden con los filtros principales
     private var destinatariosFiltrados: [Contacto] {
         todosLosContactos.filter { c in
             // Obligatorio tener correo
@@ -108,8 +111,13 @@ struct CampanaEjecucionView: View {
         }
     }
     
+    // Destinatarios finales tras aplicar exclusiones manuales
+    private var destinatariosFinales: [Contacto] {
+        destinatariosFiltrados.filter { !excludedContactIDs.contains($0.objectID) }
+    }
+    
     private var tiempoEstimadoTexto: String {
-        let totalCorreos = destinatariosFiltrados.count
+        let totalCorreos = destinatariosFinales.count
         guard totalCorreos > 0 else { return "0 minutos" }
         let totalSegundos = Double(totalCorreos - 1) * delaySeconds
         let totalMinutos = Int(totalSegundos / 60)
@@ -123,51 +131,128 @@ struct CampanaEjecucionView: View {
         NavigationStack {
             HSplitView {
                 // Columna Izquierda: Configuración de Destinatarios y Envío
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 14) {
                     Text("Destinatarios y Parámetros")
                         .font(.headline)
                         .padding(.top, 4)
                     
                     if !queueManager.isSending {
-                        // Selección de Destinatarios (Filtros idénticos a Colegios)
-                        VStack(alignment: .leading, spacing: 8) {
-                            FilterView(
-                                showFilters: $showFilters,
-                                selectedProvincia: $selectedProvincia,
-                                selectedCiudad: $selectedCiudad,
-                                selectedCP: $selectedCP,
-                                selectedRegimen: $selectedRegimen,
-                                selectedCliente: $selectedCliente,
-                                provinciasUnicas: provinciasUnicas,
-                                ciudadesUnicas: ciudadesUnicas,
-                                cpsUnicos: cpsUnicos,
-                                regimenesUnicos: regimenesUnicos
-                            )
-                        }
-                        .padding()
-                        .background(Color(nsColor: .windowBackgroundColor))
-                        .cornerRadius(8)
-                        
-                        // Configuración del Retardo
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Retardo entre Envíos:")
-                                    .bold()
-                                Spacer()
-                                Text("\(Int(delaySeconds)) segundos")
-                                    .foregroundColor(.blue)
-                                    .bold()
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 14) {
+                                // Selección de Destinatarios (Filtros idénticos a Colegios)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    FilterView(
+                                        showFilters: $showFilters,
+                                        selectedProvincia: $selectedProvincia,
+                                        selectedCiudad: $selectedCiudad,
+                                        selectedCP: $selectedCP,
+                                        selectedRegimen: $selectedRegimen,
+                                        selectedCliente: $selectedCliente,
+                                        provinciasUnicas: provinciasUnicas,
+                                        ciudadesUnicas: ciudadesUnicas,
+                                        cpsUnicos: cpsUnicos,
+                                        regimenesUnicos: regimenesUnicos
+                                    )
+                                }
+                                .padding(10)
+                                .background(Color(nsColor: .windowBackgroundColor))
+                                .cornerRadius(8)
+                                
+                                // Listado de colegios con checkbox para habilitar/deshabilitar
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("Colegios a Enviar")
+                                            .font(.subheadline)
+                                            .bold()
+                                        Spacer()
+                                        Button("Desmarcar Todos") {
+                                            for c in destinatariosFiltrados {
+                                                excludedContactIDs.insert(c.objectID)
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                        
+                                        Text("|").font(.caption).foregroundColor(.secondary)
+                                        
+                                        Button("Marcar Todos") {
+                                            for c in destinatariosFiltrados {
+                                                excludedContactIDs.remove(c.objectID)
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                    }
+                                    .padding(.top, 2)
+                                    
+                                    ScrollView {
+                                        LazyVStack(alignment: .leading, spacing: 4) {
+                                            ForEach(destinatariosFiltrados) { contacto in
+                                                let isIncluded = !excludedContactIDs.contains(contacto.objectID)
+                                                HStack(spacing: 8) {
+                                                    Button(action: {
+                                                        if isIncluded {
+                                                            excludedContactIDs.insert(contacto.objectID)
+                                                        } else {
+                                                            excludedContactIDs.remove(contacto.objectID)
+                                                        }
+                                                    }) {
+                                                        Image(systemName: isIncluded ? "checkmark.square.fill" : "square")
+                                                            .foregroundColor(.blue)
+                                                            .font(.title3)
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                    
+                                                    VStack(alignment: .leading, spacing: 1) {
+                                                        Text(contacto.nombre ?? "Sin nombre")
+                                                            .font(.body)
+                                                            .lineLimit(1)
+                                                        Text(contacto.email ?? "")
+                                                            .font(.caption)
+                                                            .foregroundStyle(.secondary)
+                                                            .lineLimit(1)
+                                                    }
+                                                    Spacer()
+                                                }
+                                                .padding(.vertical, 2)
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                    .frame(height: 180)
+                                    .padding(6)
+                                    .background(Color(nsColor: .textBackgroundColor))
+                                    .cornerRadius(6)
+                                    .border(Color.secondary.opacity(0.15))
+                                }
+                                .padding(10)
+                                .background(Color(nsColor: .windowBackgroundColor))
+                                .cornerRadius(8)
+                                
+                                // Configuración del Retardo
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("Retardo entre Envíos:")
+                                            .bold()
+                                        Spacer()
+                                        Text("\(Int(delaySeconds)) segundos")
+                                            .foregroundColor(.blue)
+                                            .bold()
+                                    }
+                                    
+                                    Slider(value: $delaySeconds, in: 5...120, step: 5)
+                                    
+                                    Text("Espaciar los correos previene que tu servidor sea bloqueado o clasificado como spam.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(10)
+                                .background(Color(nsColor: .windowBackgroundColor))
+                                .cornerRadius(8)
                             }
-                            
-                            Slider(value: $delaySeconds, in: 5...120, step: 5)
-                            
-                            Text("Espaciar los correos previene que tu servidor sea bloqueado o clasificado como spam.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
                         }
-                        .padding()
-                        .background(Color(nsColor: .windowBackgroundColor))
-                        .cornerRadius(8)
                     } else {
                         // Mostrar filtros bloqueados mientras envía
                         VStack(alignment: .leading, spacing: 8) {
@@ -186,6 +271,9 @@ struct CampanaEjecucionView: View {
                             if selectedCliente != "Todos" { Text("• Cliente: \(selectedCliente)").font(.caption) }
                             Text("• Retardo: \(Int(delaySeconds))s")
                                 .font(.caption)
+                            if !excludedContactIDs.isEmpty {
+                                Text("• Excluidos manuales: \(excludedContactIDs.count) colegios").font(.caption)
+                            }
                         }
                         .padding()
                         .background(Color(nsColor: .windowBackgroundColor))
@@ -195,15 +283,22 @@ struct CampanaEjecucionView: View {
                     // Resumen Informativo
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Destinatarios que coinciden:")
+                            Text("Coinciden con filtros:")
                             Spacer()
                             Text("\(destinatariosFiltrados.count)")
                                 .bold()
                         }
                         HStack {
+                            Text("Seleccionados para envío:")
+                            Spacer()
+                            Text("\(destinatariosFinales.count)")
+                                .bold()
+                                .foregroundColor(.blue)
+                        }
+                        HStack {
                             Text("Tiempo estimado total:")
                             Spacer()
-                            Text(tiempoEstimadoTexto)
+                            Text(tiempoEstimatedText(forCount: destinatariosFinales.count))
                                 .bold()
                         }
                     }
@@ -224,7 +319,7 @@ struct CampanaEjecucionView: View {
                                     .padding(.vertical, 8)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(destinatariosFiltrados.isEmpty)
+                            .disabled(destinatariosFinales.isEmpty)
                         } else {
                             if queueManager.isPaused {
                                 Button(action: reanudarEnvio) {
@@ -268,12 +363,12 @@ struct CampanaEjecucionView: View {
                                 Text("Progreso:")
                                     .bold()
                                 Spacer()
-                                Text("\(queueManager.currentIndex) de \(destinatariosFiltrados.count) enviados")
+                                Text("\(queueManager.currentIndex) de \(destinatariosFinales.count) enviados")
                                     .bold()
                             }
                             .font(.subheadline)
                             
-                            ProgressView(value: Double(queueManager.currentIndex), total: Double(destinatariosFiltrados.count))
+                            ProgressView(value: Double(queueManager.currentIndex), total: Double(destinatariosFinales.count))
                                 .tint(.blue)
                         }
                         .padding()
@@ -333,18 +428,39 @@ struct CampanaEjecucionView: View {
                 if !cpsUnicos.contains(selectedCP) {
                     selectedCP = "Todos"
                 }
+                excludedContactIDs.removeAll() // Reset exclusions on filter change
             }
             .onChange(of: selectedCiudad) { _, _ in
                 if !cpsUnicos.contains(selectedCP) {
                     selectedCP = "Todos"
                 }
+                excludedContactIDs.removeAll() // Reset exclusions on filter change
+            }
+            .onChange(of: selectedCP) { _, _ in
+                excludedContactIDs.removeAll()
+            }
+            .onChange(of: selectedRegimen) { _, _ in
+                excludedContactIDs.removeAll()
+            }
+            .onChange(of: selectedCliente) { _, _ in
+                excludedContactIDs.removeAll()
             }
         }
     }
     
+    private func tiempoEstimatedText(forCount count: Int) -> String {
+        guard count > 0 else { return "0 minutos" }
+        let totalSegundos = Double(count - 1) * delaySeconds
+        let totalMinutos = Int(totalSegundos / 60)
+        if totalMinutos == 0 {
+            return "\(Int(totalSegundos)) segundos"
+        }
+        return "\(totalMinutos) minutos"
+    }
+    
     private func iniciarEnvio() {
         queueManager.iniciarEnvio(
-            destinatarios: destinatariosFiltrados,
+            destinatarios: destinatariosFinales,
             plantilla: plantilla,
             delaySeconds: delaySeconds
         )
@@ -352,7 +468,7 @@ struct CampanaEjecucionView: View {
     
     private func reanudarEnvio() {
         // Enviar destinatarios restantes
-        let restantes = Array(destinatariosFiltrados.suffix(from: queueManager.currentIndex))
+        let restantes = Array(destinatariosFinales.suffix(from: queueManager.currentIndex))
         queueManager.iniciarEnvio(
             destinatarios: restantes,
             plantilla: plantilla,
