@@ -9,6 +9,8 @@ struct CampanasTabView: View {
     private var plantillas: FetchedResults<PlantillaEmail>
     
     @State private var seleccionID: NSManagedObjectID? = nil
+    @State private var mostrarAjustesSMTP = false
+    @State private var mostrarEjecucionCampana = false
     
     // Variables para el editor cuando no hay selección o para control temporal
     @State private var titulo = ""
@@ -27,10 +29,23 @@ struct CampanasTabView: View {
         HSplitView {
             // Columna 1: Listado de Plantillas (Izquierda)
             VStack(spacing: 0) {
-                HStack {
-                    Label("Plantillas de Correo", systemImage: "envelope.and.paper")
+                HStack(spacing: 12) {
+                    Label("Plantillas", systemImage: "envelope.and.paper")
                         .font(.headline)
                     Spacer()
+                    Button(action: { mostrarAjustesSMTP = true }) {
+                        Image(systemName: "gearshape")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Configuración SMTP")
+                    
+                    Button(action: { mostrarEjecucionCampana = true }) {
+                        Image(systemName: "paperplane")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(plantillaSeleccionada == nil)
+                    .help("Enviar Campaña Automática")
+                    
                     Button(action: crearNuevaPlantilla) {
                         Image(systemName: "plus")
                     }
@@ -231,6 +246,14 @@ struct CampanasTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CrearNuevaPlantillaEmail"))) { _ in
             crearNuevaPlantilla()
+        }
+        .sheet(isPresented: $mostrarAjustesSMTP) {
+            AjustesSMTPView()
+        }
+        .sheet(isPresented: $mostrarEjecucionCampana) {
+            if let plantilla = plantillaSeleccionada {
+                CampanaEjecucionView(plantilla: plantilla, context: ctx)
+            }
         }
     }
     
