@@ -20,47 +20,89 @@ struct CampanaEjecucionView: View {
     
     @StateObject private var queueManager: CampanaQueueManager
     
-    // Estados de filtros
-    @State private var filtroCliente: FiltroCliente = .todos
-    @State private var filtroProvincia = ""
+    // Estados de filtros idénticos a los de Colegios
+    @State private var selectedProvincia = "València"
+    @State private var selectedCiudad    = "VALÈNCIA"
+    @State private var selectedCP        = "Todos"
+    @State private var selectedRegimen   = "Todos"
+    @State private var selectedCliente   = "Todos"
+    @State private var showFilters       = true
     @State private var delaySeconds: Double = 45.0
-    
-    enum FiltroCliente: String, CaseIterable, Identifiable {
-        case todos = "Todos"
-        case clientes = "Solo Clientes"
-        case noClientes = "Solo No Clientes"
-        
-        var id: String { self.rawValue }
-    }
     
     init(plantilla: PlantillaEmail, context: NSManagedObjectContext) {
         self.plantilla = plantilla
         _queueManager = StateObject(wrappedValue: CampanaQueueManager(viewContext: context))
     }
     
+    // MARK: - Valores Únicos para los Pickers
+    private var provinciasUnicas: [String] {
+        let list = todosLosContactos.compactMap { $0.provincia?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        return ["Todos"] + Array(Set(list)).sorted()
+    }
+    
+    private var ciudadesUnicas: [String] {
+        let filteredByProv = todosLosContactos.filter { c in
+            if selectedProvincia == "Todos" { return true }
+            return ((c.provincia ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+                .caseInsensitiveCompare(selectedProvincia) == .orderedSame
+        }
+        let ciudades = filteredByProv
+            .compactMap { $0.ciudad?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return ["Todos"] + Array(Set(ciudades)).sorted()
+    }
+    
+    private var cpsUnicos: [String] {
+        let filtered = todosLosContactos.filter { c in
+            let provOK: Bool = {
+                if selectedProvincia == "Todos" { return true }
+                return ((c.provincia ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+                    .caseInsensitiveCompare(selectedProvincia) == .orderedSame
+            }()
+            let cityOK: Bool = {
+                if selectedCiudad == "Todos" { return true }
+                return ((c.ciudad ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+                    .caseInsensitiveCompare(selectedCiudad) == .orderedSame
+            }()
+            return provOK && cityOK
+        }
+        let cps = filtered
+            .compactMap { $0.cp?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return ["Todos"] + Array(Set(cps)).sorted()
+    }
+    
+    private var regimenesUnicos: [String] {
+        let list = todosLosContactos.compactMap { $0.regimen?.trimmingCharacters(in: .whitespacesAndNewlines)  }.filter { !$0.isEmpty }
+        return ["Todos"] + Array(Set(list)).sorted()
+    }
+    
     // Destinatarios filtrados listos para recibir el correo
     private var destinatariosFiltrados: [Contacto] {
         todosLosContactos.filter { c in
-            // Filtrar por estado de cliente
-            switch filtroCliente {
-            case .clientes:
-                if !c.esCliente { return false }
-            case .noClientes:
-                if c.esCliente { return false }
-            case .todos:
-                break
-            }
-            
-            // Filtrar por provincia
-            if !filtroProvincia.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let prov = (c.provincia ?? "").lowercased()
-                if !prov.contains(filtroProvincia.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) {
-                    return false
-                }
-            }
-            
             // Obligatorio tener correo
             guard let email = c.email, !email.isEmpty else { return false }
+            
+            if selectedProvincia != "Todos",
+               (c.provincia ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    .caseInsensitiveCompare(selectedProvincia) != .orderedSame { return false }
+
+            if selectedCiudad != "Todos",
+               (c.ciudad ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    .caseInsensitiveCompare(selectedCiudad) != .orderedSame { return false }
+
+            if selectedCP != "Todos",
+               (c.cp ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    .caseInsensitiveCompare(selectedCP) != .orderedSame { return false }
+
+            if selectedRegimen != "Todos",
+               (c.regimen ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    .caseInsensitiveCompare(selectedRegimen) != .orderedSame { return false }
+
+            if selectedCliente != "Todos" {
+                if selectedCliente == "Sí" && !c.esCliente { return false }
+                if selectedCliente == "No" && c.esCliente  { return false }
+            }
             
             return true
         }
@@ -87,21 +129,20 @@ struct CampanaEjecucionView: View {
                         .padding(.top, 4)
                     
                     if !queueManager.isSending {
-                        // Selección de Destinatarios (Filtros)
+                        // Selección de Destinatarios (Filtros idénticos a Colegios)
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Filtrar Colegios")
-                                .font(.subheadline)
-                                .bold()
-                            
-                            Picker("Tipo de Contacto", selection: $filtroCliente) {
-                                ForEach(FiltroCliente.allCases) { f in
-                                    Text(f.rawValue).tag(f)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            
-                            TextField("Filtrar por Provincia", text: $filtroProvincia, prompt: Text("Ej: Valencia"))
-                                .textFieldStyle(.roundedBorder)
+                            FilterView(
+                                showFilters: $showFilters,
+                                selectedProvincia: $selectedProvincia,
+                                selectedCiudad: $selectedCiudad,
+                                selectedCP: $selectedCP,
+                                selectedRegimen: $selectedRegimen,
+                                selectedCliente: $selectedCliente,
+                                provinciasUnicas: provinciasUnicas,
+                                ciudadesUnicas: ciudadesUnicas,
+                                cpsUnicos: cpsUnicos,
+                                regimenesUnicos: regimenesUnicos
+                            )
                         }
                         .padding()
                         .background(Color(nsColor: .windowBackgroundColor))
@@ -138,12 +179,11 @@ struct CampanaEjecucionView: View {
                             Text("Filtros aplicados:")
                                 .font(.caption)
                                 .bold()
-                            Text("• Tipo: \(filtroCliente.rawValue)")
-                                .font(.caption)
-                            if !filtroProvincia.isEmpty {
-                                Text("• Provincia: \(filtroProvincia)")
-                                    .font(.caption)
-                            }
+                            if selectedProvincia != "Todos" { Text("• Provincia: \(selectedProvincia)").font(.caption) }
+                            if selectedCiudad != "Todos" { Text("• Ciudad: \(selectedCiudad)").font(.caption) }
+                            if selectedCP != "Todos" { Text("• CP: \(selectedCP)").font(.caption) }
+                            if selectedRegimen != "Todos" { Text("• Régimen: \(selectedRegimen)").font(.caption) }
+                            if selectedCliente != "Todos" { Text("• Cliente: \(selectedCliente)").font(.caption) }
                             Text("• Retardo: \(Int(delaySeconds))s")
                                 .font(.caption)
                         }
@@ -283,6 +323,20 @@ struct CampanaEjecucionView: View {
                         dismiss()
                     }
                     .disabled(queueManager.isSending && !queueManager.isPaused)
+                }
+            }
+            // Sincronizar selectores anidados
+            .onChange(of: selectedProvincia) { _, _ in
+                if !ciudadesUnicas.contains(selectedCiudad) {
+                    selectedCiudad = "Todos"
+                }
+                if !cpsUnicos.contains(selectedCP) {
+                    selectedCP = "Todos"
+                }
+            }
+            .onChange(of: selectedCiudad) { _, _ in
+                if !cpsUnicos.contains(selectedCP) {
+                    selectedCP = "Todos"
                 }
             }
         }
