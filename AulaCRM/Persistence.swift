@@ -65,7 +65,24 @@ struct PersistenceController {
                  print("📂 Ruta de la Base de Datos SQLite: \(url.path)")
             }
             if let error = error as NSError? {
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+                print("⚠️ Error al cargar base de datos (posible conflicto de migración): \(error.localizedDescription)")
+                if let url = storeDescription.url {
+                    print("🧹 Eliminando base de datos corrupta/antigua en \(url.path)...")
+                    let shmURL = url.appendingPathExtension("shm")
+                    let walURL = url.appendingPathExtension("wal")
+                    try? FileManager.default.removeItem(at: url)
+                    try? FileManager.default.removeItem(at: shmURL)
+                    try? FileManager.default.removeItem(at: walURL)
+                    
+                    // Reintentar cargar de cero
+                    PersistenceController.shared.container.loadPersistentStores(completionHandler: { (_, retryError) in
+                        if let retryError = retryError as NSError? {
+                            fatalError("Unresolved error \(retryError), \(retryError.userInfo)")
+                        }
+                    })
+                } else {
+                    fatalError("Unresolved error \(error), \(error.userInfo)")
+                }
             }
         })
         

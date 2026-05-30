@@ -12,6 +12,7 @@
         <attribute name="cif" optional="YES" attributeType="String"/>
         <attribute name="ciudad" optional="YES" attributeType="String"/>
         <attribute name="cliente" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="colegio" optional="YES" attributeType="String"/>
         <attribute name="codigo" optional="YES" attributeType="String"/>
         <attribute name="cp" optional="YES" attributeType="String"/>
         <attribute name="direccion" optional="YES" attributeType="String"/>

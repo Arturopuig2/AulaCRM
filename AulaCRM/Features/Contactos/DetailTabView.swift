@@ -184,6 +184,14 @@ struct DetailTabView: View {
                     HStack(spacing: 20) {
                         Toggle("Cliente", isOn: Binding(get: { contacto.esCliente }, set: { contacto.esCliente = $0 }))
                         
+                        Picker("Tipo", selection: Binding(get: { contacto.tipoContacto }, set: { contacto.tipoContacto = $0 })) {
+                            ForEach(["Colegio", "Profe", "P/Madre", "Trobades", "Otro"], id: \.self) { opt in
+                                Text(opt).tag(opt)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 150)
+                        
                         Button {
                             showDeleteAlert = true
                         } label: {
@@ -266,6 +274,12 @@ struct DetailTabView: View {
                         .focused($focusedField, equals: .nombre)
                     
                     Toggle("Es Cliente", isOn: Binding(get: { contacto.esCliente }, set: { contacto.esCliente = $0 }))
+                    
+                    Picker("Tipo de Contacto", selection: Binding(get: { contacto.tipoContacto }, set: { contacto.tipoContacto = $0 })) {
+                        ForEach(["Colegio", "Profe", "P/Madre", "Trobades", "Otro"], id: \.self) { opt in
+                            Text(opt).tag(opt)
+                        }
+                    }
                     
                     HStack {
                         TextField("Código", text: Binding(get: { contacto.codigoSafe }, set: { contacto.codigoSafe = $0 }))

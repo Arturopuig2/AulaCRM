@@ -69,4 +69,14 @@ extension Contacto {
             self.setValue(newValue, forKey: "cliente")
         }
     }
+    
+    /// Tipo de contacto (Colegio, Profe, P/Madre, Otro)
+    var tipoContacto: String {
+        get {
+            return (self.value(forKey: "colegio") as? String) ?? "Colegio"
+        }
+        set {
+            self.setValue(newValue, forKey: "colegio")
+        }
+    }
 }

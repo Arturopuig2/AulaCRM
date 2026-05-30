@@ -22,6 +22,25 @@ struct ContentView: View {
     // Estado UI
     @StateObject private var viewModel = ContentViewModel()
     @State private var selectedID: NSManagedObjectID? = nil
+
+    private var listSelectionBinding: Binding<NSManagedObjectID?> {
+        Binding(
+            get: { selectedID },
+            set: { newValue in
+                if let newValue = newValue {
+                    selectedID = newValue
+                } else {
+                    if let currentID = selectedID,
+                       let contact = try? ctx.existingObject(with: currentID),
+                       !contact.isDeleted {
+                        // Mantener la selección actual del contacto ya que sigue existiendo
+                    } else {
+                        selectedID = nil
+                    }
+                }
+            }
+        )
+    }
     @State private var selectedTab: Tab = .detalle
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     
@@ -58,7 +77,7 @@ struct ContentView: View {
     
 
     enum Tab: String, CaseIterable {
-        case detalle = "Colegios"
+        case detalle = "Contactos"
         case productos = "Productos"
         case almacen = "Almacén"
         case facturas = "Facturas"
@@ -85,6 +104,7 @@ struct ContentView: View {
             selectedCP: $viewModel.selectedCP,
             selectedRegimen: $viewModel.selectedRegimen,
             selectedCliente: $viewModel.selectedCliente,
+            selectedTipo: $viewModel.selectedTipo,
             provinciasUnicas: provinciasUnicas,
             ciudadesUnicas: ciudadesUnicas,
             cpsUnicos: cpsUnicos,
@@ -116,7 +136,7 @@ struct ContentView: View {
                     // (Filtros movidos abajo)
                     #endif
                     
-                    List(selection: $selectedID) {
+                    List(selection: listSelectionBinding) {
                         #if os(macOS)
                         // En Mac: Filtros dentro de la lista (estilo clásico Sidebar)
                         filterSection
@@ -332,9 +352,9 @@ struct ContentView: View {
                                 switch selectedTab {
                                 case .detalle:
                                     Button(action: crearContactoVacio) {
-                                        Label("Nuevo Colegio", systemImage: "plus")
+                                        Label("Nuevo Contacto", systemImage: "plus")
                                     }
-                                    .help("Añadir nuevo colegio")
+                                    .help("Añadir nuevo contacto")
                                 case .productos:
                                     Button { mostrarNuevoProducto = true } label: {
                                         Label("Nuevo Producto", systemImage: "plus")
@@ -413,6 +433,12 @@ struct ContentView: View {
                 print("☁️ [CloudKit] Cambio remoto detectado, refrescando UI...")
                 // Forzar que el contexto principal asimile los nuevos datos
                 ctx.refreshAllObjects()
+                
+                let bgContext = PersistenceController.shared.container.newBackgroundContext()
+                bgContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+                bgContext.perform {
+                    CSVImporter.eliminarDuplicadosReales(ctx: bgContext)
+                }
             }
         }
         .onAppear {
@@ -430,6 +456,7 @@ struct ContentView: View {
                 if countProd == 0 {
                     CSVImporter.importarProductos(desde: "producto", contexto: bgContext)
                 }
+                
                 CSVImporter.eliminarDuplicadosReales(ctx: bgContext)
                 CSVImporter.eliminarDuplicadosProductos(ctx: bgContext)
                 
@@ -503,7 +530,12 @@ struct ContentView: View {
     }
 
     private func crearContactoVacio() {
-        selectedID = viewModel.crearContactoVacio(context: ctx)
+        selectedID = viewModel.crearContactoVacio(
+            context: ctx,
+            provincia: viewModel.selectedProvincia,
+            ciudad: viewModel.selectedCiudad,
+            tipo: viewModel.selectedTipo
+        )
         selectedTab = .detalle
     }
 

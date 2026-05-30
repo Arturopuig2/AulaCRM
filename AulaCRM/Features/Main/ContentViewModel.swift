@@ -14,6 +14,7 @@ class ContentViewModel: ObservableObject {
     @Published var selectedCP        = "Todos"
     @Published var selectedRegimen   = "Todos"
     @Published var selectedCliente   = "Todos" // opciones: Todos / Sí / No
+    @Published var selectedTipo      = "Todos"
     
     @Published var showAllPins = false
     @Published var showFilters: Bool = false
@@ -91,6 +92,9 @@ class ContentViewModel: ObservableObject {
                 if selectedCliente == "Sí" && !isCliente { return false }
                 if selectedCliente == "No" && isCliente  { return false }
             }
+            
+            if selectedTipo != "Todos",
+               (c.tipoContacto).caseInsensitiveCompare(selectedTipo) != .orderedSame { return false }
 
             if buscado.isEmpty { return true }
             return (c.nombre ?? "").localizedCaseInsensitiveContains(buscado)
@@ -104,10 +108,13 @@ class ContentViewModel: ObservableObject {
         try? context.save()
     }
 
-    func crearContactoVacio(context: NSManagedObjectContext) -> NSManagedObjectID {
+    func crearContactoVacio(context: NSManagedObjectContext, provincia: String, ciudad: String, tipo: String) -> NSManagedObjectID {
         let c = Contacto(context: context)
         c.id = UUID()
         c.nombre = "Nuevo contacto"
+        if provincia != "Todos" { c.provincia = provincia }
+        if ciudad != "Todos" { c.ciudad = ciudad }
+        if tipo != "Todos" { c.colegio = tipo }
         try? context.save()
         return c.objectID
     }

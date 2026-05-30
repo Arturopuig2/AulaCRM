@@ -7,6 +7,7 @@ struct FilterView: View {
     @Binding var selectedCP: String
     @Binding var selectedRegimen: String
     @Binding var selectedCliente: String
+    @Binding var selectedTipo: String
     
     let provinciasUnicas: [String]
     let ciudadesUnicas: [String]
@@ -35,6 +36,23 @@ struct FilterView: View {
                         Text("Todos").tag("Todos")
                         Text("Sí").tag("Sí")
                         Text("No").tag("No")
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // Tipo (Manual options)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Tipo")
+                    Picker("Tipo", selection: $selectedTipo) {
+                        Text("Todos").tag("Todos")
+                        Text("Colegio").tag("Colegio")
+                        Text("Profe").tag("Profe")
+                        Text("P/Madre").tag("P/Madre")
+                        Text("Trobades").tag("Trobades")
+                        Text("Otro").tag("Otro")
                     }
                     .pickerStyle(.menu)
                     .labelsHidden()

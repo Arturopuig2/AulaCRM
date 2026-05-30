@@ -356,19 +356,40 @@ struct CSVImporter {
 
     // MARK: - Limpieza de Duplicados
     
-    /// Elimina duplicados basándose en CIF (prioritario) o combinación de Nombre + Ciudad
+    /// Elimina duplicados basándose en CIF o combinación de Nombre + Ciudad, priorizando conservar los que tienen más datos o relaciones.
     static func eliminarDuplicadosReales(ctx: NSManagedObjectContext) {
         let req: NSFetchRequest<Contacto> = Contacto.fetchRequest()
-        // Ordenamos por fecha de creación o ID para mantener el más "antiguo" o con más info si fuera posible, 
-        // pero aquí solo tenemos el orden de fetch por ahora.
         
         do {
             let todos = try ctx.fetch(req)
+            
+            // Ordenar para procesar primero los que tienen más información (ej: CIF, Código, o relaciones)
+            // de modo que los "completos" se registren en vistos y los "duplicados" vacíos se borren.
+            let todosOrdenados = todos.sorted { c1, c2 in
+                let score1 = ((c1.cif ?? "").isEmpty ? 0 : 2)
+                    + ((c1.codigo ?? "").isEmpty ? 0 : 1)
+                    + ((c1.email ?? "").isEmpty ? 0 : 1)
+                    + ((c1.reservas as? Set<NSManagedObject>)?.count ?? 0 > 0 ? 10 : 0)
+                    + ((c1.compras as? Set<NSManagedObject>)?.count ?? 0 > 0 ? 10 : 0)
+                    + ((c1.conversaciones as? Set<NSManagedObject>)?.count ?? 0 > 0 ? 10 : 0)
+                    + ((c1.personas as? Set<NSManagedObject>)?.count ?? 0 > 0 ? 10 : 0)
+                
+                let score2 = ((c2.cif ?? "").isEmpty ? 0 : 2)
+                    + ((c2.codigo ?? "").isEmpty ? 0 : 1)
+                    + ((c2.email ?? "").isEmpty ? 0 : 1)
+                    + ((c2.reservas as? Set<NSManagedObject>)?.count ?? 0 > 0 ? 10 : 0)
+                    + ((c2.compras as? Set<NSManagedObject>)?.count ?? 0 > 0 ? 10 : 0)
+                    + ((c2.conversaciones as? Set<NSManagedObject>)?.count ?? 0 > 0 ? 10 : 0)
+                    + ((c2.personas as? Set<NSManagedObject>)?.count ?? 0 > 0 ? 10 : 0)
+                
+                return score1 > score2
+            }
+            
             var vistosCIF: Set<String> = []
             var vistosNombreCiudad: Set<String> = []
             var eliminados = 0
 
-            for c in todos {
+            for c in todosOrdenados {
                 let cif = (c.cif ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let nombre = (c.nombre ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let ciudad = (c.ciudad ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -377,28 +398,27 @@ struct CSVImporter {
                 
                 var esDuplicado = false
                 
-                // 1. Verificar por CIF si existe
+                // 1. Verificar por CIF si ya lo hemos visto
                 if !cif.isEmpty {
                     if vistosCIF.contains(cif) {
                         esDuplicado = true
-                    } else {
-                        vistosCIF.insert(cif)
-                        // Si tiene CIF, también marcamos nombre+ciudad para evitar duplicados mixtos
-                        if !nombre.isEmpty { vistosNombreCiudad.insert(keyNombreCiudad) }
                     }
-                } 
-                // 2. Si no tiene CIF o no es duplicado por CIF, verificar por Nombre + Ciudad
-                else if !nombre.isEmpty {
+                }
+                
+                // 2. Verificar por Nombre + Ciudad si ya lo hemos visto
+                if !esDuplicado && !nombre.isEmpty {
                     if vistosNombreCiudad.contains(keyNombreCiudad) {
                         esDuplicado = true
-                    } else {
-                        vistosNombreCiudad.insert(keyNombreCiudad)
                     }
                 }
 
                 if esDuplicado {
                     ctx.delete(c)
                     eliminados += 1
+                } else {
+                    // Guardar para futuras comparaciones
+                    if !cif.isEmpty { vistosCIF.insert(cif) }
+                    if !nombre.isEmpty { vistosNombreCiudad.insert(keyNombreCiudad) }
                 }
             }
             

@@ -7,10 +7,22 @@
 
 import SwiftUI
 import MapKit
+import CoreData
 
 struct MapTabView: View {
     var contactos: [Contacto]
     @Binding var selectedContact: Contacto?
+
+    private var mapSelectionBinding: Binding<Contacto?> {
+        Binding(
+            get: { selectedContact },
+            set: { newValue in
+                if let newValue = newValue {
+                    selectedContact = newValue
+                }
+            }
+        )
+    }
 
     @State private var cameraPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
@@ -50,7 +62,7 @@ struct MapTabView: View {
     var body: some View {
         VStack(alignment: .leading) {
             ZStack(alignment: .topTrailing) {
-                Map(position: $cameraPosition, selection: $selectedContact) {
+                Map(position: $cameraPosition, selection: mapSelectionBinding) {
                     ForEach(pins) { pin in
                         Annotation(pin.title, coordinate: pin.coordinate) {
                             Image(systemName: "mappin.circle.fill")
@@ -143,4 +155,11 @@ struct MapTabView: View {
     }
 }
 
-struct Pin: Identifiable { let id = UUID(); let title: String; let subtitle: String?; let coordinate: CLLocationCoordinate2D; let isClient: Bool; let contact: Contacto }
+struct Pin: Identifiable {
+    var id: NSManagedObjectID { contact.objectID }
+    let title: String
+    let subtitle: String?
+    let coordinate: CLLocationCoordinate2D
+    let isClient: Bool
+    let contact: Contacto
+}

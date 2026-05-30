@@ -689,6 +689,7 @@ struct SelectorContactoView: View {
     @State private var selectedCP        = "Todos"
     @State private var selectedRegimen   = "Todos"
     @State private var selectedCliente   = "Todos"
+    @State private var selectedTipo      = "Todos"
     @State private var showFilters: Bool = true
 
     // Lógica de filtrado idéntica a ContentView
@@ -737,6 +738,7 @@ struct SelectorContactoView: View {
                 if selectedCliente == "Sí" && !isCliente { return false }
                 if selectedCliente == "No" && isCliente  { return false }
             }
+            if selectedTipo != "Todos", (c.tipoContacto).caseInsensitiveCompare(selectedTipo) != .orderedSame { return false }
             if buscado.isEmpty { return true }
             return (c.nombre ?? "").localizedCaseInsensitiveContains(buscado) || (c.ciudad ?? "").localizedCaseInsensitiveContains(buscado)
         }
@@ -754,6 +756,7 @@ struct SelectorContactoView: View {
                             selectedCP: $selectedCP,
                             selectedRegimen: $selectedRegimen,
                             selectedCliente: $selectedCliente,
+                            selectedTipo: $selectedTipo,
                             provinciasUnicas: provinciasUnicas,
                             ciudadesUnicas: ciudadesUnicas,
                             cpsUnicos: cpsUnicos,

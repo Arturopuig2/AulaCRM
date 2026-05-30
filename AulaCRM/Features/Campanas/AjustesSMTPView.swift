@@ -24,7 +24,10 @@ struct AjustesSMTPView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(header: Text("Servidor de Correo Saliente (SMTP)")) {
+                Section(
+                    header: Text("Servidor de Correo Saliente (SMTP)"),
+                    footer: Text("Nota: AulaCRM requiere conexión segura SSL/TLS implícita (puerto recomendado 465). El puerto 587 (STARTTLS) no está soportado actualmente.")
+                ) {
                     TextField("Servidor SMTP (Host)", text: $host, prompt: Text("ej: smtp.editorialaula.es"))
                     
                     TextField("Puerto", text: $portText)

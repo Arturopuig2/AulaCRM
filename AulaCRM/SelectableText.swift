@@ -12,7 +12,7 @@ struct SelectableText: NSViewRepresentable {
         label.isEditable = false
         label.isBezeled = false
         label.drawsBackground = false
-        label.isSelectable = true
+        label.isSelectable = true   // <-- CLAVE: se puede seleccionar y copiar
         lineBreak(label)
         return label
     }

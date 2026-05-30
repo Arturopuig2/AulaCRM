@@ -26,6 +26,7 @@ struct CampanaEjecucionView: View {
     @State private var selectedCP        = "Todos"
     @State private var selectedRegimen   = "Todos"
     @State private var selectedCliente   = "Todos"
+    @State private var selectedTipo      = "Todos"
     @State private var showFilters       = true
     @State private var delaySeconds: Double = 45.0
     
@@ -107,6 +108,9 @@ struct CampanaEjecucionView: View {
                 if selectedCliente == "No" && c.esCliente  { return false }
             }
             
+            if selectedTipo != "Todos",
+               (c.tipoContacto).caseInsensitiveCompare(selectedTipo) != .orderedSame { return false }
+            
             return true
         }
     }
@@ -146,6 +150,7 @@ struct CampanaEjecucionView: View {
                                 selectedCP: $selectedCP,
                                 selectedRegimen: $selectedRegimen,
                                 selectedCliente: $selectedCliente,
+                                selectedTipo: $selectedTipo,
                                 provinciasUnicas: provinciasUnicas,
                                 ciudadesUnicas: ciudadesUnicas,
                                 cpsUnicos: cpsUnicos,
@@ -265,6 +270,7 @@ struct CampanaEjecucionView: View {
                             if selectedCP != "Todos" { Text("• CP: \(selectedCP)").font(.caption) }
                             if selectedRegimen != "Todos" { Text("• Régimen: \(selectedRegimen)").font(.caption) }
                             if selectedCliente != "Todos" { Text("• Cliente: \(selectedCliente)").font(.caption) }
+                            if selectedTipo != "Todos" { Text("• Tipo: \(selectedTipo)").font(.caption) }
                             Text("• Retardo: \(Int(delaySeconds))s")
                                 .font(.caption)
                             if !excludedContactIDs.isEmpty {
@@ -435,10 +441,10 @@ struct CampanaEjecucionView: View {
             .onChange(of: selectedCP) { _, _ in
                 excludedContactIDs.removeAll()
             }
-            .onChange(of: selectedRegimen) { _, _ in
+            .onChange(of: selectedCliente) { _, _ in
                 excludedContactIDs.removeAll()
             }
-            .onChange(of: selectedCliente) { _, _ in
+            .onChange(of: selectedTipo) { _, _ in
                 excludedContactIDs.removeAll()
             }
         }
