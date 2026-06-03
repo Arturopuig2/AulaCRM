@@ -22,6 +22,7 @@ struct ContentView: View {
     // Estado UI
     @StateObject private var viewModel = ContentViewModel()
     @State private var selectedID: NSManagedObjectID? = nil
+    @State private var isMapHovered = false
 
     private var listSelectionBinding: Binding<NSManagedObjectID?> {
         Binding(
@@ -240,12 +241,14 @@ struct ContentView: View {
                                                   showAllPins: $viewModel.showAllPins,
                                                   selectedContact: Binding(
                                                     get: { selectedContact },
-                                                    set: { selectedID = $0?.objectID }))
+                                                    set: { selectedID = $0?.objectID }),
+                                                  isMapHovered: $isMapHovered)
                                 } else {
                                     Text("Selecciona un contacto").foregroundStyle(.secondary)
                                     Spacer()
                                 }
                             }
+                            .scrollDisabled(isMapHovered)
                             #else
                             if let contacto = selectedContact {
                                 DetailTabView(contacto: contacto,
@@ -253,7 +256,8 @@ struct ContentView: View {
                                               showAllPins: $viewModel.showAllPins,
                                               selectedContact: Binding(
                                                 get: { selectedContact },
-                                                set: { selectedID = $0?.objectID }))
+                                                set: { selectedID = $0?.objectID }),
+                                              isMapHovered: .constant(false))
                             } else {
                                 Text("Selecciona un contacto").foregroundStyle(.secondary)
                                 Spacer()

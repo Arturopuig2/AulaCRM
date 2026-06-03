@@ -25,6 +25,7 @@ struct DetailTabView: View {
     var contactosFiltrados: [Contacto] = []
     @Binding var showAllPins: Bool
     @Binding var selectedContact: Contacto?
+    @Binding var isMapHovered: Bool
     @State private var latText = ""
     @State private var lngText = ""
     @State private var cameraPosition: MapCameraPosition = .region(
@@ -263,7 +264,9 @@ struct DetailTabView: View {
             .padding(.bottom, 8)
 
             // Mapa
-            MapTabView(contactos: showAllPins ? contactosFiltrados : [contacto], selectedContact: $selectedContact)
+            MapTabView(contactos: showAllPins ? contactosFiltrados : [contacto],
+                       selectedContact: $selectedContact,
+                       isMapHovered: $isMapHovered)
                 //.frame(minHeight: 400)
                 .frame(height: 600)
                 .padding(.top, 0)

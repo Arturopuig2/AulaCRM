@@ -12,6 +12,7 @@ import CoreData
 struct MapTabView: View {
     var contactos: [Contacto]
     @Binding var selectedContact: Contacto?
+    @Binding var isMapHovered: Bool
 
     private var mapSelectionBinding: Binding<Contacto?> {
         Binding(
@@ -76,6 +77,16 @@ struct MapTabView: View {
                 }
                 .frame(minHeight: 320)
                 .onAppear { cameraPosition = .region(region) }
+                #if os(macOS)
+                .onHover { hovering in
+                    isMapHovered = hovering
+                    if hovering {
+                        NSCursor.openHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
+                #endif
 
                 // Botones de zoom y centrar
                 VStack(spacing: 8) {
