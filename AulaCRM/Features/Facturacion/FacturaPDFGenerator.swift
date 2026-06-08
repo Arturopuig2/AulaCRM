@@ -20,6 +20,7 @@ struct FacturaPDFData {
     let clienteProvincia: String
     let clienteCIF: String
     let baseImponible: Double
+    let descuento: Double
     let iva: Double
     let total: Double
     let notas: String
@@ -79,6 +80,7 @@ struct FacturaPDFGenerator {
             clienteProvincia: factura.clienteProvincia ?? "",
             clienteCIF: factura.clienteCIF ?? "",
             baseImponible: factura.baseImponible,
+            descuento: (factura.value(forKey: "descuento") as? Double) ?? 0.0,
             iva: factura.iva,
             total: factura.total,
             notas: factura.notas ?? "",
@@ -257,6 +259,20 @@ struct FacturaPDFGenerator {
         // ── TOTALES ───────────────────────────────────────────────────────────
         if facturaData.numero != "Muestra" {
             let tx: CGFloat = 340; let tw2 = pageRect.width - margin - tx
+            
+            if facturaData.descuento > 0.0 {
+                let importeBruto = facturaData.lineas.reduce(0.0) { $0 + $1.total }
+                let importeDescuento = importeBruto * (facturaData.descuento / 100.0)
+                
+                txt("Importe Bruto:", x: tx, y: y, w: 110, h: 14, font: f11, color: black)
+                txt(String(format: "%.2f €", importeBruto), x: tx+115, y: y, w: tw2-115, h: 14, font: f11, color: black, align: .right)
+                y += 17
+                
+                txt(String(format: "Descuento (%.0f%%):", facturaData.descuento), x: tx, y: y, w: 110, h: 14, font: f11, color: black)
+                txt(String(format: "-%.2f €", importeDescuento), x: tx+115, y: y, w: tw2-115, h: 14, font: f11, color: black, align: .right)
+                y += 17
+            }
+            
             txt("Base Imponible:", x: tx, y: y, w: 110, h: 14, font: f11,  color: black)
             txt(String(format: "%.2f €", facturaData.baseImponible), x: tx+115, y: y, w: tw2-115, h: 14, font: fb11, color: black, align: .right); y += 17
             txt("IVA (\(Int(facturaData.iva*100))%):", x: tx, y: y, w: 110, h: 14, font: f11, color: black)
@@ -522,6 +538,25 @@ struct FacturaPDFGenerator {
                 let totalesX: CGFloat = 340
                 let totalesW = pageRect.width - margin - totalesX
 
+                if facturaData.descuento > 0.0 {
+                    let importeBruto = facturaData.lineas.reduce(0.0) { $0 + $1.total }
+                    let importeDescuento = importeBruto * (facturaData.descuento / 100.0)
+                    
+                    draw("Importe Bruto:", in: CGRect(x: totalesX, y: y, width: 110, height: 14),
+                         font: font11, color: black)
+                    draw(String(format: "%.2f €", importeBruto),
+                         in: CGRect(x: totalesX + 115, y: y, width: totalesW - 115, height: 14),
+                         font: font11, color: black, align: .right)
+                    y += 17
+                    
+                    draw(String(format: "Descuento (%.0f%%):", facturaData.descuento), in: CGRect(x: totalesX, y: y, width: 110, height: 14),
+                         font: font11, color: black)
+                    draw(String(format: "-%.2f €", importeDescuento),
+                         in: CGRect(x: totalesX + 115, y: y, width: totalesW - 115, height: 14),
+                         font: font11, color: black, align: .right)
+                    y += 17
+                }
+
                 draw("Base Imponible:", in: CGRect(x: totalesX, y: y, width: 110, height: 14),
                      font: font11, color: black)
                 draw(String(format: "%.2f €", facturaData.baseImponible),
@@ -696,6 +731,20 @@ struct FacturaPDFView: View {
                 HStack {
                     Spacer()
                     VStack(alignment: .trailing, spacing: 5) {
+                        if factura.descuento > 0.0 {
+                            let importeBruto = factura.lineas.reduce(0.0) { $0 + $1.total }
+                            let importeDescuento = importeBruto * (factura.descuento / 100.0)
+                            
+                            HStack {
+                                Text("Importe Bruto:")
+                                Text(String(format: "%.2f €", importeBruto))
+                            }
+                            HStack {
+                                Text(String(format: "Descuento (%.0f%%):", factura.descuento))
+                                Text(String(format: "-%.2f €", importeDescuento))
+                            }
+                        }
+                        
                         HStack {
                             Text("Base Imponible:")
                             Text(String(format: "%.2f €", factura.baseImponible)).bold()

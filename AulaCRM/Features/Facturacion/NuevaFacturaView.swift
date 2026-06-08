@@ -21,6 +21,7 @@ struct NuevaFacturaView: View {
     @State private var notas = ""
     @State private var lineas: [LineaTemp] = []
     @State private var porcIva: Double = 0.04
+    @State private var descuento: Double = 0.0
     @State private var emisor = "Aula"
     @State private var esMuestra = false
     
@@ -43,8 +44,12 @@ struct NuevaFacturaView: View {
         var total: Double { Double(cantidad) * precioUnitario }
     }
     
-    var baseImponible: Double {
+    var importeBruto: Double {
         lineas.reduce(0) { $0 + $1.total }
+    }
+    
+    var baseImponible: Double {
+        importeBruto * (1.0 - (descuento / 100.0))
     }
     
     var iva: Double {
@@ -117,6 +122,11 @@ struct NuevaFacturaView: View {
                         porcIva = savedIva
                     } else {
                         porcIva = 0.04
+                    }
+                    if let savedDescuento = f.value(forKey: "descuento") as? Double {
+                        descuento = savedDescuento
+                    } else {
+                        descuento = 0.0
                     }
                     notas = f.notas ?? ""
                     if let lines = f.lineas as? Set<LineaFactura> {
@@ -427,6 +437,34 @@ struct NuevaFacturaView: View {
                     Divider()
                     
                     HStack {
+                        Text("Descuento (%):")
+                        Spacer()
+                        TextField("0", value: $descuento, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 65)
+                    }
+                    .font(.subheadline)
+                    
+                    Divider()
+                    
+                    if descuento > 0.0 {
+                        HStack {
+                            Text("Importe Bruto:")
+                            Spacer()
+                            Text(String(format: "%.2f €", importeBruto))
+                        }
+                        .font(.subheadline)
+                        
+                        HStack {
+                            Text(String(format: "Descuento (%.0f%%):", descuento))
+                            Spacer()
+                            Text(String(format: "-%.2f €", importeBruto * (descuento / 100.0)))
+                        }
+                        .font(.subheadline)
+                    }
+                    
+                    HStack {
                         Text("Base Imponible:")
                         Spacer()
                         Text(String(format: "%.2f €", baseImponible))
@@ -490,6 +528,7 @@ struct NuevaFacturaView: View {
         f.fechaCobro = fechaCobro
         f.notas = notas
         f.baseImponible = baseImponible
+        f.setValue(descuento, forKey: "descuento")
         f.iva = porcIva
         f.total = totalFactura
         f.clienteNombre = clienteNombre

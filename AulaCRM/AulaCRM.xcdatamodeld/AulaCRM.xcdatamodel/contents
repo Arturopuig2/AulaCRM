@@ -77,6 +77,7 @@
     </entity>
     <entity name="Factura" representedClassName="Factura" syncable="YES" codeGenerationType="class">
         <attribute name="baseImponible" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="descuento" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="clienteCIF" optional="YES" attributeType="String"/>
         <attribute name="clienteCiudad" optional="YES" attributeType="String"/>
         <attribute name="clienteCP" optional="YES" attributeType="String"/>
