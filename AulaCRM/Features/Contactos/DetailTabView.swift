@@ -186,7 +186,7 @@ struct DetailTabView: View {
                         Toggle("Cliente", isOn: Binding(get: { contacto.esCliente }, set: { contacto.esCliente = $0 }))
                         
                         Picker("Tipo", selection: Binding(get: { contacto.tipoContacto }, set: { contacto.tipoContacto = $0 })) {
-                            ForEach(["Colegio", "Profe", "P/Madre", "Trobades", "Otro"], id: \.self) { opt in
+                            ForEach(["Colegio", "Profe", "P/Madre", "Trobades", "Librería", "Otro"], id: \.self) { opt in
                                 Text(opt).tag(opt)
                             }
                         }
@@ -279,7 +279,7 @@ struct DetailTabView: View {
                     Toggle("Es Cliente", isOn: Binding(get: { contacto.esCliente }, set: { contacto.esCliente = $0 }))
                     
                     Picker("Tipo de Contacto", selection: Binding(get: { contacto.tipoContacto }, set: { contacto.tipoContacto = $0 })) {
-                        ForEach(["Colegio", "Profe", "P/Madre", "Trobades", "Otro"], id: \.self) { opt in
+                        ForEach(["Colegio", "Profe", "P/Madre", "Trobades", "Librería", "Otro"], id: \.self) { opt in
                             Text(opt).tag(opt)
                         }
                     }

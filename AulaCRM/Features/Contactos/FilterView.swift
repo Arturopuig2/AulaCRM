@@ -52,6 +52,7 @@ struct FilterView: View {
                         Text("Profe").tag("Profe")
                         Text("P/Madre").tag("P/Madre")
                         Text("Trobades").tag("Trobades")
+                        Text("Librería").tag("Librería")
                         Text("Otro").tag("Otro")
                     }
                     .pickerStyle(.menu)
