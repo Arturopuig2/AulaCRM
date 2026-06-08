@@ -30,14 +30,6 @@ struct ContentView: View {
             set: { newValue in
                 if let newValue = newValue {
                     selectedID = newValue
-                } else {
-                    if let currentID = selectedID,
-                       let contact = try? ctx.existingObject(with: currentID),
-                       !contact.isDeleted {
-                        // Mantener la selección actual del contacto ya que sigue existiendo
-                    } else {
-                        selectedID = nil
-                    }
                 }
             }
         )
@@ -521,26 +513,38 @@ struct ContentView: View {
     private var selectedContact: Contacto? {
         if isImporting { return nil } // Seguridad: No mostrar nada mientras se importa/borra
         
+        print("🔍 selectedContact: selectedID is \(selectedID?.description ?? "nil")")
         if let id = selectedID {
             if let contact = try? ctx.existingObject(with: id) as? Contacto, !contact.isDeleted {
+                print("🔍 selectedContact: Found contact '\(contact.nombre ?? "S/N")'")
                 return contact
+            } else {
+                print("🔍 selectedContact: Contact not found or deleted for ID \(id)")
             }
         }
-        return filteredContacts.first
+        let first = filteredContacts.first
+        print("🔍 selectedContact: Falling back to first contact '\(first?.nombre ?? "nil")'")
+        return first
     }
 
     // MARK: - Acciones
     private func borrar(_ offsets: IndexSet) {
+        let selectedDeleted = offsets.contains { filteredContacts[$0].objectID == selectedID }
         viewModel.borrar(offsets: offsets, in: filteredContacts, context: ctx)
+        if selectedDeleted {
+            selectedID = nil
+        }
     }
 
     private func crearContactoVacio() {
-        selectedID = viewModel.crearContactoVacio(
+        let newID = viewModel.crearContactoVacio(
             context: ctx,
             provincia: viewModel.selectedProvincia,
             ciudad: viewModel.selectedCiudad,
             tipo: viewModel.selectedTipo
         )
+        print("🔍 crearContactoVacio: Created contact with ID \(newID)")
+        selectedID = newID
         selectedTab = .detalle
     }
 
