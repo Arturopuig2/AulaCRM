@@ -522,8 +522,9 @@ struct ContentView: View {
         if isImporting { return nil } // Seguridad: No mostrar nada mientras se importa/borra
         
         if let id = selectedID {
-            return contactos.first(where: { $0.objectID == id })
-                ?? filteredContacts.first
+            if let contact = try? ctx.existingObject(with: id) as? Contacto, !contact.isDeleted {
+                return contact
+            }
         }
         return filteredContacts.first
     }
