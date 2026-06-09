@@ -570,7 +570,7 @@ struct NuevaFacturaView: View {
                 mov.producto = prod
                 mov.tipoAlmacen = "Trastero" // Por defecto
                 mov.comprador = clienteNombre
-                mov.notas = (esMuestra ? "Salida por Muestra" : "Salida por Factura \(numero)") + " [Ref:\(f.id!.uuidString)]"
+                mov.notas = esMuestra ? "Salida por Muestra" : "Salida por Factura \(numero)"
                 
                 // Actualizar stock en el producto
                 let stockActual = (prod.value(forKey: "stock") as? NSNumber)?.intValue ?? Int(prod.stock)
