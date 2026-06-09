@@ -154,7 +154,7 @@ private struct MovimientosTable: View {
             .width(min: 100, ideal: 150)
 
             TableColumn("Notas") { m in
-                Text(m.notas ?? "")
+                Text(m.notasLimpias)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -430,7 +430,7 @@ struct FormularioMovimientoView: View {
         fecha              = mov.fecha ?? Date()
         comprador          = mov.comprador ?? ""
         vendedor           = mov.vendedor ?? ""
-        notas              = mov.notas ?? ""
+        notas              = mov.notasLimpias
         tipoAlmacen        = mov.tipoAlmacen == "Casa" ? .casa : .trastero
     }
 
@@ -815,5 +815,15 @@ struct SelectorContactoView: View {
         .onChange(of: selectedCiudad) { _, _ in
             if !cpsUnicos.contains(selectedCP) { selectedCP = "Todos" }
         }
+    }
+}
+
+extension MovimientoAlmacen {
+    var notasLimpias: String {
+        guard let n = self.notas else { return "" }
+        let pattern = "\\s*\\[Ref:[^\\]]+\\]"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return n }
+        let range = NSRange(n.startIndex..<n.endIndex, in: n)
+        return regex.stringByReplacingMatches(in: n, options: [], range: range, withTemplate: "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
